@@ -9449,12 +9449,21 @@ function getStatusKelengkapanDokumen(jamaahId) {
 async function downloadDokumen(jamaahId, jenisId, jenisNama, jamaahNama) {
     const data = dokumenData[jamaahId]?.[jenisId];
     if (!data) return showToast('Dokumen tidak ditemukan!');
-    const ext = data.startsWith('data:image/png') ? 'png' : data.startsWith('data:image/gif') ? 'gif' : 'jpg';
-    const a = document.createElement('a');
-    a.href = data;
-    a.download = jenisNama + '_' + jamaahNama.replace(/ /g,'_') + '.' + ext;
-    a.click();
-    showToast('⬇️ Dokumen didownload!');
+    try {
+        const res = await fetch(data);
+        const blob = await res.blob();
+        const isPDF = blob.type.includes('pdf');
+        const ext = isPDF ? 'pdf' : (blob.type.includes('png') ? 'png' : blob.type.includes('gif') ? 'gif' : 'jpg');
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = jenisNama + '_' + jamaahNama.replace(/ /g,'_') + '.' + ext;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
+        showToast('⬇️ Dokumen didownload!');
+    } catch(e) {
+        showToast('❌ Gagal download: ' + e.message);
+    }
 }
 
 async function bagikanDokumen(jamaahId, jenisId, jenisNama, jamaahNama) {
@@ -9463,20 +9472,18 @@ async function bagikanDokumen(jamaahId, jenisId, jenisNama, jamaahNama) {
     try {
         const res = await fetch(data);
         const blob = await res.blob();
-        const ext = blob.type.includes('png') ? 'png' : blob.type.includes('gif') ? 'gif' : 'jpg';
-        const file = new File([blob], jenisNama + '_' + jamaahNama + '.' + ext, { type: blob.type });
+        const isPDF = blob.type.includes('pdf');
+        const ext = isPDF ? 'pdf' : (blob.type.includes('png') ? 'png' : blob.type.includes('gif') ? 'gif' : 'jpg');
+        const namaFile = jenisNama + '_' + jamaahNama + '.' + ext;
+        const file = new File([blob], namaFile, { type: blob.type });
         if (navigator.share && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-                files: [file],
-                title: jenisNama + ' - ' + jamaahNama,
-                text: jenisNama + ' atas nama ' + jamaahNama
-            });
+            await navigator.share({ files: [file], title: jenisNama + ' - ' + jamaahNama });
         } else {
-            // Fallback ke download
+            // Fallback ke download via Blob URL
+            const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = data;
-            a.download = jenisNama + '_' + jamaahNama.replace(/ /g,'_') + '.' + ext;
-            a.click();
+            a.href = url; a.download = namaFile; a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 3000);
             showToast('Bagikan tidak didukung, dokumen didownload');
         }
     } catch(err) {
@@ -9497,6 +9504,7 @@ function previewDokumen(jamaahId, jenisId) {
     const imgEl = document.getElementById('previewDokumenImage');
     if(isPDF) {
         imgEl.style.display = 'none';
+        imgEl.dataset.docData = data; // simpan untuk bukaDocPenuh meski tersembunyi
         // Tampilkan PDF preview placeholder
         let pdfPreview = document.getElementById('previewDokumenPDF');
         if(!pdfPreview) {
@@ -9514,6 +9522,7 @@ function previewDokumen(jamaahId, jenisId) {
     } else {
         imgEl.style.display = 'block';
         imgEl.src = data;
+        imgEl.dataset.docData = data; // simpan untuk bukaDocPenuh
         const pdfPreview = document.getElementById('previewDokumenPDF');
         if(pdfPreview) pdfPreview.style.display = 'none';
     }
@@ -9590,38 +9599,66 @@ function fallbackCopy(text, pesan) {
     showToast('✅ ' + pesan);
 }
 
-function bukaDocPenuh() {
-    const img = document.getElementById('previewDokumenImage');
+async function bukaDocPenuh() {
+    const imgEl = document.getElementById('previewDokumenImage');
     const judul = document.getElementById('previewDokumenTitle')?.innerText || 'Dokumen';
-    if(!img?.src) return;
-    // Buka di tab baru — user bisa zoom bebas pakai browser native
-    const win = window.open('', '_blank');
-    if(!win) return showToast('Izinkan popup untuk membuka dokumen penuh');
-    win.document.write(`<!DOCTYPE html><html><head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-        <title>${judul}</title>
-        <style>
-            * { margin:0; padding:0; box-sizing:border-box; }
-            body { background:#111; display:flex; flex-direction:column; min-height:100vh; }
-            .topbar { background:#0D5C4A; color:white; padding:12px 16px; display:flex;
-                      align-items:center; justify-content:space-between; position:sticky; top:0; z-index:9; }
-            .topbar h3 { font-size:14px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-            .topbar button { background:rgba(255,255,255,0.2); color:white; border:none;
-                             padding:6px 14px; border-radius:20px; font-size:13px; cursor:pointer; margin-left:10px; }
-            .img-wrap { flex:1; display:flex; align-items:center; justify-content:center; padding:16px; }
-            img { max-width:100%; height:auto; border-radius:8px; touch-action:pinch-zoom; }
-            .hint { color:#888; font-size:12px; text-align:center; padding:8px 0 16px; }
-        </style>
-    </head><body>
-        <div class="topbar">
-            <h3>${judul}</h3>
-            <button onclick="window.close()">✕ Tutup</button>
-        </div>
-        <div class="img-wrap"><img src="${img.src}" alt="${judul}"></div>
-        <div class="hint">Cubit (pinch) untuk zoom • Geser untuk pindah</div>
-    </body></html>`);
-    win.document.close();
+
+    // Ambil data dari dataset.docData (tersimpan saat previewDokumen dipanggil)
+    let data = imgEl?.dataset?.docData || imgEl?.src;
+    if(!data || data === window.location.href) return showToast('Tidak ada dokumen untuk dibuka');
+
+    const isPDF = data.startsWith('data:application/pdf');
+
+    try {
+        const res = await fetch(data);
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        if(isPDF) {
+            // PDF: buka langsung di browser — Android akan pakai PDF viewer
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.target = '_blank';
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+            showToast('📄 PDF dibuka di viewer');
+        } else {
+            // Gambar: buka di halaman HTML dengan zoom + cetak
+            const win = window.open('', '_blank');
+            if(!win) { URL.revokeObjectURL(blobUrl); return showToast('Izinkan popup untuk membuka dokumen'); }
+            win.document.write(`<!DOCTYPE html><html><head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+                <title>${judul}</title>
+                <style>
+                    * { margin:0; padding:0; box-sizing:border-box; }
+                    body { background:#111; display:flex; flex-direction:column; min-height:100vh; }
+                    .topbar { background:#0D5C4A; color:white; padding:12px 16px; display:flex;
+                              align-items:center; justify-content:space-between; position:sticky; top:0; z-index:9; }
+                    .topbar h3 { font-size:14px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+                    .topbar button { background:rgba(255,255,255,0.2); color:white; border:none;
+                                     padding:6px 14px; border-radius:20px; font-size:13px; cursor:pointer; margin-left:6px; }
+                    .img-wrap { flex:1; display:flex; align-items:center; justify-content:center; padding:16px; }
+                    img { max-width:100%; height:auto; border-radius:8px; touch-action:pinch-zoom; display:block; }
+                    .hint { color:#888; font-size:12px; text-align:center; padding:8px 0 16px; }
+                    @media print { .topbar,.hint { display:none; } body { background:white; } img { max-width:100%; } }
+                </style>
+            </head><body>
+                <div class="topbar">
+                    <h3>${judul}</h3>
+                    <button onclick="window.print()">🖨️ Cetak</button>
+                    <button onclick="window.close()">✕ Tutup</button>
+                </div>
+                <div class="img-wrap"><img src="${blobUrl}" alt="${judul}" onload="this.style.opacity=1" style="opacity:0;transition:opacity 0.3s;"></div>
+                <div class="hint">Cubit untuk zoom • Tekan lama gambar → Bagikan → Google Lens</div>
+            </body></html>`);
+            win.document.close();
+            // Bersihkan blob URL saat tab ditutup
+            win.addEventListener('unload', () => URL.revokeObjectURL(blobUrl));
+        }
+    } catch(e) {
+        showToast('❌ Gagal membuka dokumen: ' + e.message);
+    }
 }
 
 function closePreviewDokumenModal() {
