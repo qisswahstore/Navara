@@ -2873,12 +2873,100 @@
                     </div>
                 </div>
                 <div>
-                    <button id="driveConnectBtn" class="btn-connect" onclick="connectGoogleDrive()">☁️ Hubungkan</button>
+                    <button id="driveConnectBtn" class="btn-connect" onclick="showPage('googledrive')">☁️ Hubungkan</button>
                     <button id="driveBackupBtn" class="btn-connect" style="display:none;background:var(--primary);" onclick="backupToDrive()">⬆️ Backup</button>
                     <button id="driveRestoreBtn" class="btn-connect" style="display:none;background:var(--purple);" onclick="restoreFromDrive()">⬇️ Restore</button>
                     <button id="driveDisconnectBtn" class="btn-connect" style="display:none;background:var(--gray-light);color:var(--dark);" onclick="disconnectDrive()">🔌 Putus</button>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- HALAMAN AKUN GOOGLE DRIVE -->
+<div id="page-googledrive" class="page">
+    <div class="header-premium header-premium-small">
+        <div class="back-header">
+            <button onclick="showPage('cloudstorage')" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:8px 14px;border-radius:20px;cursor:pointer;font-size:14px;">← Kembali</button>
+            <h2>Akun Google</h2>
+            <div style="width:80px;"></div>
+        </div>
+    </div>
+    <div class="container" style="max-width:480px;margin:0 auto;padding:20px 16px 100px;">
+
+        <!-- Logo & Judul -->
+        <div style="text-align:center;margin:24px 0 28px;">
+            <div style="width:72px;height:72px;background:white;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 4px 20px rgba(0,0,0,0.1);">
+                <i class="fab fa-google-drive" style="font-size:36px;color:#0F9D58;"></i>
+            </div>
+            <div style="font-size:22px;font-weight:800;color:#1a1a1a;">Akun Google</div>
+            <div style="font-size:13px;color:#666;margin-top:8px;line-height:1.6;padding:0 16px;">
+                Backup data jamaah ke Google Drive milik Anda sendiri secara otomatis.
+            </div>
+        </div>
+
+        <!-- Status Akun -->
+        <div style="background:white;border-radius:18px;padding:20px;margin-bottom:14px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <div style="font-size:12px;color:#888;margin-bottom:6px;">Status akun</div>
+            <div id="gdStatusText" style="font-size:16px;font-weight:700;color:#f59e0b;margin-bottom:16px;">Belum terhubung</div>
+            <button id="gdConnectBtn" onclick="connectGoogleDrive()"
+                style="width:100%;padding:16px;background:linear-gradient(135deg,#f59e0b,#f97316);color:white;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 15px rgba(245,158,11,0.4);">
+                Hubungkan Akun Google
+            </button>
+            <button id="gdDisconnectBtn" onclick="disconnectDrive()"
+                style="width:100%;padding:14px;background:#fee2e2;color:#ef4444;border:none;border-radius:14px;font-size:14px;font-weight:600;cursor:pointer;margin-top:10px;display:none;">
+                🔌 Putuskan Koneksi
+            </button>
+        </div>
+
+        <!-- Toggle Options -->
+        <div style="background:white;border-radius:18px;padding:4px 0;margin-bottom:14px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <div style="padding:18px 20px;border-bottom:1px solid #f0f0f0;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div style="flex:1;padding-right:14px;">
+                        <div style="font-weight:700;font-size:14px;color:#1a1a1a;margin-bottom:4px;">Backup otomatis ke Drive</div>
+                        <div style="font-size:12px;color:#888;line-height:1.5;">Data jamaah dicadangkan otomatis setiap kali ada perubahan ke Google Drive Anda.</div>
+                    </div>
+                    <label class="switch" style="flex-shrink:0;">
+                        <input type="checkbox" id="gdAutoBackupToggle" onchange="toggleGDAutoBackup(this)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div style="padding:18px 20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div style="flex:1;padding-right:14px;">
+                        <div style="font-weight:700;font-size:14px;color:#1a1a1a;margin-bottom:4px;">Notifikasi backup</div>
+                        <div style="font-size:12px;color:#888;line-height:1.5;">Tampilkan notifikasi setelah backup berhasil.</div>
+                    </div>
+                    <label class="switch" style="flex-shrink:0;">
+                        <input type="checkbox" id="gdNotifToggle" onchange="toggleGDNotif(this)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Backup Info -->
+        <div style="text-align:center;font-size:12px;color:#888;margin-bottom:14px;" id="gdLastBackup">
+            Backup terakhir: belum pernah
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="background:white;border-radius:18px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:14px;">
+            <button onclick="backupToDrive()"
+                style="width:100%;padding:18px 20px;background:none;border:none;border-bottom:1px solid #f0f0f0;font-size:15px;font-weight:700;color:#f59e0b;cursor:pointer;text-align:center;">
+                ☁️ Backup Sekarang
+            </button>
+            <button onclick="restoreFromDrive()"
+                style="width:100%;padding:18px 20px;background:none;border:none;font-size:15px;font-weight:600;color:#1a1a1a;cursor:pointer;text-align:center;">
+                ⬇️ Restore dari Drive
+            </button>
+        </div>
+
+        <!-- Info -->
+        <div style="font-size:11px;color:#aaa;text-align:center;line-height:1.7;padding:0 8px;">
+            App hanya dapat mengakses file yang dibuatnya sendiri di Drive — bukan seluruh Drive Anda. Data Anda aman dan privat.
         </div>
     </div>
 </div>
@@ -2949,6 +3037,21 @@
 <div id="previewDokumenModal" class="modal"><div class="modal-content" style="max-height:90vh;overflow-y:auto;">
     <h3 id="previewDokumenTitle">Preview Dokumen</h3>
     <img id="previewDokumenImage" class="preview-img" style="max-width:100%;border-radius:12px;margin:12px 0;display:block;">
+    <!-- PDF Viewer via PDF.js -->
+    <div id="previewDokumenPDFViewer" style="display:none;">
+        <div id="pdfLoadingMsg" style="text-align:center;padding:20px;color:#888;">
+            <div style="font-size:32px;margin-bottom:8px;">⏳</div>
+            <div>Memuat PDF...</div>
+        </div>
+        <div id="pdfControls" style="display:none;background:#f8fafc;border-radius:10px;padding:8px 12px;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <button onclick="pdfPrevPage()" style="padding:5px 12px;background:#0D5C4A;color:white;border:none;border-radius:8px;font-size:12px;cursor:pointer;">◀ Prev</button>
+            <span id="pdfPageInfo" style="font-size:12px;color:#666;flex:1;text-align:center;">Halaman 1 / 1</span>
+            <button onclick="pdfNextPage()" style="padding:5px 12px;background:#0D5C4A;color:white;border:none;border-radius:8px;font-size:12px;cursor:pointer;">Next ▶</button>
+            <button onclick="pdfZoomOut()" style="padding:5px 10px;background:#e2e8f0;color:#333;border:none;border-radius:8px;font-size:13px;cursor:pointer;">🔍−</button>
+            <button onclick="pdfZoomIn()" style="padding:5px 10px;background:#e2e8f0;color:#333;border:none;border-radius:8px;font-size:13px;cursor:pointer;">🔍+</button>
+        </div>
+        <canvas id="pdfCanvas" style="width:100%;border-radius:10px;display:block;"></canvas>
+    </div>
     <div id="previewDokumenDataContainer"></div>
 
     <div style="display:flex;gap:8px;margin-top:14px;position:sticky;bottom:0;background:white;padding:8px 0;">
@@ -3136,6 +3239,7 @@ function internalShowPage(pageId) {
     if (pageId === 'datamaster') { if(window.loadMasterData) window.loadMasterData(); if(window.renderDynamicModeSwitcher) window.renderDynamicModeSwitcher(); }
     if (pageId === 'home') { updateLicenseBanner(); updateLicenseSummary(); updateHomeStats(); }
     if (pageId === 'lisensi') { renderLicenseStatus(); }
+    if (pageId === 'googledrive') { initGoogleDrivePage(); }
     if (pageId === 'setting') { updateLicenseSummary(); }
     if (pageId === 'konfigurasi') { if(window.loadKonfigurasiPro) window.loadKonfigurasiPro(); setTimeout(applyKonfigurasiLock, 400); }
     if (pageId === 'catatan') { if(window.renderCatatanList) window.renderCatatanList(); const fab = document.getElementById('catatanFabBtn'); if(fab) fab.style.display = 'flex'; }
@@ -9505,6 +9609,10 @@ function previewDokumen(jamaahId, jenisId) {
     if(isPDF) {
         imgEl.style.display = 'none';
         imgEl.dataset.docData = data; // simpan untuk bukaDocPenuh meski tersembunyi
+        // Sembunyikan viewer gambar, tampilkan PDF.js viewer
+        const pdfViewerEl = document.getElementById('previewDokumenPDFViewer');
+        if(pdfViewerEl) pdfViewerEl.style.display = 'block';
+        loadPDFPreview(data);
         // Tampilkan PDF preview placeholder
         let pdfPreview = document.getElementById('previewDokumenPDF');
         if(!pdfPreview) {
@@ -9663,8 +9771,72 @@ async function bukaDocPenuh() {
 
 function closePreviewDokumenModal() {
     document.getElementById('previewDokumenModal').classList.remove('show');
-
+    closePDFViewer();
+    const img = document.getElementById('previewDokumenImage');
+    if(img) { img.src = ''; delete img.dataset.docData; }
+    const container = document.getElementById('previewDokumenDataContainer');
+    if(container) container.innerHTML = '';
 }
+
+// ==================== PDF.js VIEWER ====================
+let _pdfDoc = null, _pdfPage = 1, _pdfScale = 1.4;
+
+async function renderPDFPage(num) {
+    try {
+        const page = await _pdfDoc.getPage(num);
+        const canvas = document.getElementById('pdfCanvas');
+        const ctx = canvas.getContext('2d');
+        const viewport = page.getViewport({ scale: _pdfScale });
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        document.getElementById('pdfPageInfo').textContent = `Halaman ${num} / ${_pdfDoc.numPages}`;
+    } catch(e) { console.error('PDF render error:', e); }
+}
+
+async function loadPDFPreview(dataUrl) {
+    const viewer = document.getElementById('previewDokumenPDFViewer');
+    const loading = document.getElementById('pdfLoadingMsg');
+    const controls = document.getElementById('pdfControls');
+    viewer.style.display = 'block';
+    loading.style.display = 'block';
+    controls.style.display = 'none';
+    _pdfDoc = null; _pdfPage = 1; _pdfScale = 1.4;
+    try {
+        if(!window.pdfjsLib) {
+            await new Promise((res, rej) => {
+                const s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                s.onload = res; s.onerror = rej;
+                document.head.appendChild(s);
+            });
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+        const res = await fetch(dataUrl);
+        const buffer = await res.arrayBuffer();
+        _pdfDoc = await window.pdfjsLib.getDocument({ data: buffer }).promise;
+        loading.style.display = 'none';
+        controls.style.display = 'flex';
+        await renderPDFPage(1);
+    } catch(e) {
+        loading.innerHTML = `<div style="color:#ef4444;text-align:center;padding:20px;">❌ Gagal memuat PDF<br><small>${e.message}</small><br><br><small>Pastikan ada koneksi internet untuk pertama kali.</small></div>`;
+    }
+}
+
+function pdfNextPage() { if(!_pdfDoc || _pdfPage >= _pdfDoc.numPages) return; _pdfPage++; renderPDFPage(_pdfPage); }
+function pdfPrevPage() { if(!_pdfDoc || _pdfPage <= 1) return; _pdfPage--; renderPDFPage(_pdfPage); }
+function pdfZoomIn() { if(!_pdfDoc) return; _pdfScale = Math.min(_pdfScale + 0.3, 3.0); renderPDFPage(_pdfPage); }
+function pdfZoomOut() { if(!_pdfDoc) return; _pdfScale = Math.max(_pdfScale - 0.3, 0.5); renderPDFPage(_pdfPage); }
+
+function closePDFViewer() {
+    _pdfDoc = null; _pdfPage = 1;
+    const viewer = document.getElementById('previewDokumenPDFViewer');
+    if(viewer) viewer.style.display = 'none';
+    const canvas = document.getElementById('pdfCanvas');
+    if(canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); }
+}
+
 
 // Preprocessing gambar: grayscale + tingkatkan kontras sebelum OCR
 // Post-processing: rapikan hasil OCR
@@ -10391,10 +10563,30 @@ function restoreFromZip(input) {
 }
 
 // ==================== GOOGLE DRIVE (placeholder) ====================
-function connectGoogleDrive() { showToast('🔐 Fitur Google Drive segera hadir! Pantau update Navara.'); }
-function disconnectDrive() { showToast('🔐 Fitur Google Drive memerlukan konfigurasi'); }
+function connectGoogleDrive() {
+    showToast('🔐 Fitur Google Drive segera hadir! Pantau update Navara.');
+}
+function disconnectDrive() {
+    showToast('🔐 Fitur Google Drive memerlukan konfigurasi');
+}
 function backupToDrive() { showToast('🔐 Konfigurasi Google Drive belum lengkap'); }
 function restoreFromDrive() { showToast('🔐 Konfigurasi Google Drive belum lengkap'); }
+function toggleGDAutoBackup(el) {
+    localStorage.setItem('navara_gd_auto_backup', el.checked ? '1' : '0');
+    showToast(el.checked ? '✅ Backup otomatis diaktifkan' : 'Backup otomatis dinonaktifkan');
+}
+function toggleGDNotif(el) {
+    localStorage.setItem('navara_gd_notif', el.checked ? '1' : '0');
+}
+function initGoogleDrivePage() {
+    const autoBackup = document.getElementById('gdAutoBackupToggle');
+    const notif = document.getElementById('gdNotifToggle');
+    if(autoBackup) autoBackup.checked = localStorage.getItem('navara_gd_auto_backup') === '1';
+    if(notif) notif.checked = localStorage.getItem('navara_gd_notif') === '1';
+    const lastBackup = localStorage.getItem('navara_gd_last_backup');
+    const lastBackupEl = document.getElementById('gdLastBackup');
+    if(lastBackupEl) lastBackupEl.textContent = lastBackup ? `Backup terakhir: ${lastBackup}` : 'Backup terakhir: belum pernah';
+}
 
 // ==================== CETAK LABEL ====================
 function populateLabelDropdown() {
