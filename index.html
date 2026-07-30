@@ -3092,12 +3092,19 @@ async function cetakSemuaDokumenJamaah(jamaahId, jamaahNama) {
     const docs = dokumenData[jamaahId] || {};
     const dokumenYangAda = [];
     for (const jenis of dokumenJenisList) {
-        if (docs[jenis.id] && docs[jenis.id] !== '') {
-            dokumenYangAda.push({
-                nama: jenis.nama,
-                icon: jenis.icon,
-                data: docs[jenis.id]
+        const arr = docs[jenis.id];
+        if (Array.isArray(arr) && arr.length > 0) {
+            // Tambahkan semua foto dari array
+            arr.forEach((foto, idx) => {
+                dokumenYangAda.push({
+                    nama: arr.length > 1 ? `${jenis.nama} (${idx+1}/${arr.length})` : jenis.nama,
+                    icon: jenis.icon,
+                    data: foto
+                });
             });
+        } else if(typeof arr === 'string' && arr !== '') {
+            // Fallback untuk data lama
+            dokumenYangAda.push({ nama: jenis.nama, icon: jenis.icon, data: arr });
         }
     }
     if (dokumenYangAda.length === 0) {
