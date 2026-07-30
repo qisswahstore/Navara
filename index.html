@@ -9723,13 +9723,63 @@ async function bukaDocPenuh() {
         const blobUrl = URL.createObjectURL(blob);
 
         if(isPDF) {
-            // PDF: buka langsung di browser — Android akan pakai PDF viewer
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.target = '_blank';
-            a.click();
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-            showToast('📄 PDF dibuka di viewer');
+            // Render PDF semua halaman ke gambar via PDF.js → bisa cetak
+            const win = window.open('', '_blank');
+            if(!win) { URL.revokeObjectURL(blobUrl); return showToast('Izinkan popup untuk membuka dokumen'); }
+            win.document.write(`<!DOCTYPE html><html><head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width,initial-scale=1.0">
+                <title>${judul}</title>
+                <style>
+                    *{margin:0;padding:0;box-sizing:border-box;}
+                    body{background:#555;font-family:sans-serif;}
+                    .topbar{background:#0D5C4A;color:white;padding:10px 14px;display:flex;
+                            align-items:center;justify-content:space-between;position:sticky;top:0;z-index:9;}
+                    .topbar h3{font-size:13px;flex:1;}
+                    .topbar button{background:rgba(255,255,255,0.2);color:white;border:none;
+                                   padding:6px 12px;border-radius:16px;font-size:12px;cursor:pointer;margin-left:6px;}
+                    .pages{padding:12px;display:flex;flex-direction:column;gap:10px;}
+                    canvas{width:100%;display:block;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.3);}
+                    #loadMsg{color:white;text-align:center;padding:40px;font-size:14px;}
+                    @media print{.topbar{display:none;}body{background:white;}.pages{padding:0;gap:0;}
+                    canvas{box-shadow:none;border-radius:0;page-break-after:always;}}
+                </style>
+            </head><body>
+                <div class="topbar">
+                    <h3>${judul}</h3>
+                    <button onclick="window.print()">🖨️ Cetak</button>
+                    <button onclick="window.close()">✕</button>
+                </div>
+                <div id="loadMsg">⏳ Memuat PDF...</div>
+                <div class="pages" id="pagesContainer"></div>
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"><\/script>
+                <script>
+                pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                (async()=>{
+                    try{
+                        const resp=await fetch('${blobUrl}');
+                        const buf=await resp.arrayBuffer();
+                        const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+                        document.getElementById('loadMsg').style.display='none';
+                        const cont=document.getElementById('pagesContainer');
+                        for(let i=1;i<=pdf.numPages;i++){
+                            const page=await pdf.getPage(i);
+                            const vp=page.getViewport({scale:2.0});
+                            const c=document.createElement('canvas');
+                            c.width=vp.width; c.height=vp.height;
+                            const ctx=c.getContext('2d');
+                            ctx.fillStyle='white'; ctx.fillRect(0,0,c.width,c.height);
+                            await page.render({canvasContext:ctx,viewport:vp}).promise;
+                            cont.appendChild(c);
+                        }
+                    }catch(e){
+                        document.getElementById('loadMsg').innerHTML='❌ Gagal memuat PDF: '+e.message;
+                    }
+                })();
+                <\/script>
+            </body></html>`);
+            win.document.close();
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
         } else {
             // Gambar: buka di halaman HTML dengan zoom + cetak
             const win = window.open('', '_blank');
@@ -9789,6 +9839,9 @@ async function renderPDFPage(num) {
         const viewport = page.getViewport({ scale: _pdfScale });
         canvas.height = viewport.height;
         canvas.width = viewport.width;
+        // Fill white background dulu supaya tidak hitam
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         await page.render({ canvasContext: ctx, viewport }).promise;
         document.getElementById('pdfPageInfo').textContent = `Halaman ${num} / ${_pdfDoc.numPages}`;
     } catch(e) { console.error('PDF render error:', e); }
