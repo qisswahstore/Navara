@@ -3149,9 +3149,10 @@ async function cetakSemuaDokumenJamaah(jamaahId, jamaahNama) {
     printWindow.document.close();
 }
 
-async function cetakDokumenPerJenis(jamaahId, jenisId, jenisNama, jamaahNama) {
-    const data = dokumenData[jamaahId]?.[jenisId];
-    if (!data) { showToast(`❌ Tidak ada dokumen ${jenisNama} untuk ${jamaahNama}`); return; }
+async function cetakDokumenPerJenis(jamaahId, jenisId, jenisNama, jamaahNama, idx = 0) {
+    const arr = dokumenData[jamaahId]?.[jenisId];
+    const data = Array.isArray(arr) ? arr[idx] : arr;
+    if (!data) { showToast(`❌ Tidak ada dokumen ${jenisNama}`); return; }
     const printWindow = window.open('', '_blank');
     const html = `<!DOCTYPE html><html><head>
         <title>Cetak ${jenisNama} - ${jamaahNama}</title>
@@ -9391,19 +9392,23 @@ async function loadDokumenDataFromIndexedDB() {
             request.onsuccess = () => { 
                 const items = request.result || []; 
                 dokumenData = {}; 
-                items.forEach(item => { 
-                    dokumenData[item.jamaahId] = item.data; 
+                items.forEach(item => {
+                    // Migrasi: kalau value string tunggal → convert ke array
+                    const data = item.data || {};
+                    Object.keys(data).forEach(k => {
+                        if(typeof data[k] === 'string' && data[k] !== '') {
+                            data[k] = [data[k]];
+                        } else if(!Array.isArray(data[k])) {
+                            delete data[k];
+                        }
+                    });
+                    dokumenData[item.jamaahId] = data; 
                 }); 
-                console.log('✅ Loaded dokumen data:', Object.keys(dokumenData).length, 'jamaah with documents');
                 resolve(); 
             }; 
-            request.onerror = () => {
-                console.error('❌ Error loading dokumen data:', request.error);
-                reject(request.error);
-            }; 
+            request.onerror = () => reject(request.error); 
         }); 
     } catch(e) { 
-        console.error('❌ Error loadDokumenDataFromIndexedDB:', e);
         return Promise.resolve(); 
     } 
 }
@@ -9413,30 +9418,24 @@ async function saveDokumenToIndexedDB(jamaahId, jenisId, base64Data) {
         const database = await openIndexedDB(); 
         const transaction = database.transaction([STORE_NAME], 'readwrite'); 
         const store = transaction.objectStore(STORE_NAME); 
-        
-        // Update local dokumenData
         if (!dokumenData[jamaahId]) dokumenData[jamaahId] = {}; 
-        if (jenisId && base64Data) dokumenData[jamaahId][jenisId] = base64Data; 
-        
-        // Save to IndexedDB
+        if (jenisId && base64Data) {
+            // Tambah ke array (bukan replace)
+            if(!Array.isArray(dokumenData[jamaahId][jenisId])) {
+                dokumenData[jamaahId][jenisId] = [];
+            }
+            dokumenData[jamaahId][jenisId].push(base64Data);
+        }
         const request = store.put({ 
             id: `jamaah_${jamaahId}`, 
             jamaahId: jamaahId, 
             data: dokumenData[jamaahId] 
         }); 
-        
         return new Promise((resolve, reject) => { 
-            request.onsuccess = () => {
-                console.log('✅ Dokumen berhasil disimpan untuk jamaah:', jamaahId, 'jenis:', jenisId);
-                resolve();
-            }; 
-            request.onerror = () => {
-                console.error('❌ Error menyimpan dokumen:', request.error);
-                reject(request.error);
-            }; 
+            request.onsuccess = () => resolve(); 
+            request.onerror = () => reject(request.error); 
         }); 
     } catch(e) { 
-        console.error('❌ Error saveDokumenToIndexedDB:', e);
         return Promise.reject(e); 
     } 
 }
@@ -9501,36 +9500,44 @@ function renderDokumenList() {
             <div class="dokumen-header">
                 <div>
                     <div class="dokumen-jamaah">👤 ${escapeHtml(j.nama_lengkap)}</div>
-                    <div style="font-size:11px; color:var(--gray);">${j.paket || '-'}</div>
+                    <div style="font-size:11px;color:var(--gray);">${j.paket || '-'}</div>
                 </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
+                <div style="display:flex;gap:8px;align-items:center;">
                     <div class="dokumen-status-badge ${statusClass}">${statusText}</div>
-                    <button class="btn-print-all-doc" onclick="cetakSemuaDokumenJamaah(${j.id}, '${escapeHtml(j.nama_lengkap)}')">
-                        🖨️ CETAK SEMUA
-                    </button>
+                    <button class="btn-print-all-doc" onclick="cetakSemuaDokumenJamaah(${j.id}, '${escapeHtml(j.nama_lengkap)}')">🖨️</button>
                 </div>
             </div>
-            <div class="dokumen-grid">`; 
+            <div class="dokumen-grid">`;
         for(const jenis of dokumenJenisList) { 
-            const hasDoc = dokumenData[j.id] && dokumenData[j.id][jenis.id] && dokumenData[j.id][jenis.id] !== ''; 
+            const arr = dokumenData[j.id]?.[jenis.id];
+            const hasDoc = Array.isArray(arr) && arr.length > 0;
+            const count = hasDoc ? arr.length : 0;
             html += `<div class="dokumen-item">
                 <div class="dokumen-icon">${jenis.icon}</div>
-                <div class="dokumen-label">${escapeHtml(jenis.nama)}</div>
-                <div class="${hasDoc ? 'dokumen-status-ada' : 'dokumen-status-belum'}">${hasDoc ? '✅ Ada' : '⏳ Belum'}</div>
-                <div>
-                    ${hasDoc ? `<button class="btn-preview-doc" onclick="previewDokumen(${j.id}, '${jenis.id}')"><i class="fas fa-eye"></i></button>
-                    <button class="btn-print-doc" onclick="cetakDokumenPerJenis(${j.id}, '${jenis.id}', '${escapeHtml(jenis.nama)}', '${escapeHtml(j.nama_lengkap)}')"><i class="fas fa-print"></i></button>
-                    <button class="btn-share-wa" onclick="downloadDokumen(${j.id}, '${jenis.id}', '${escapeHtml(jenis.nama)}', '${escapeHtml(j.nama_lengkap)}')" title="Download"><i class="fas fa-download"></i></button>
-                    <button class="btn-edit-jamaah" onclick="bagikanDokumen(${j.id}, '${jenis.id}', '${escapeHtml(jenis.nama)}', '${escapeHtml(j.nama_lengkap)}')" title="Bagikan"><i class="fas fa-share-alt"></i></button>
-                    <button class="btn-delete-doc" onclick="confirmDeleteDokumen(${j.id}, '${jenis.id}', '${escapeHtml(jenis.nama)}')"><i class="fas fa-trash-alt"></i></button>` : ''}
-                    <button class="btn-upload-doc" onclick="uploadDokumen(${j.id}, '${jenis.id}', '${escapeHtml(jenis.nama)}')"><i class="fas fa-upload"></i></button>
-                </div>
-            </div>`; 
+                <div class="dokumen-label">${escapeHtml(jenis.nama)}</div>`;
+            if(hasDoc) {
+                // Tampilkan thumbnail foto-foto
+                html += `<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:4px 0;">`;
+                arr.forEach((foto, idx) => {
+                    html += `<img src="${foto}" 
+                        onclick="previewDokumen(${j.id},'${jenis.id}',${idx})"
+                        style="width:36px;height:36px;object-fit:cover;border-radius:6px;cursor:pointer;border:2px solid #0D5C4A;">`;
+                });
+                html += `<div onclick="uploadDokumen(${j.id},'${jenis.id}','${escapeHtml(jenis.nama)}')"
+                    style="width:36px;height:36px;border-radius:6px;border:2px dashed #ccc;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;color:#aaa;">+</div>`;
+                html += `</div>
+                <div class="dokumen-status-ada">✅ ${count} foto</div>`;
+            } else {
+                html += `<div class="dokumen-status-belum">⏳ Belum</div>
+                <button class="btn-upload-doc" onclick="uploadDokumen(${j.id},'${jenis.id}','${escapeHtml(jenis.nama)}')">
+                    <i class="fas fa-upload"></i> Upload
+                </button>`;
+            }
+            html += `</div>`;
         } 
         html += `</div></div>`; 
     }); 
-    container.innerHTML = html; 
-    console.log('✅ Dokumen list rendered');
+    container.innerHTML = html;
 }
 
 function updateDokumenStats() { 
@@ -9546,142 +9553,218 @@ function filterDokumenList() { renderDokumenList(); }
 function getStatusKelengkapanDokumen(jamaahId) { 
     const docs = dokumenData[jamaahId] || {}; 
     let total = dokumenJenisList.length, ada = 0; 
-    for(const jenis of dokumenJenisList) { if(docs[jenis.id] && docs[jenis.id] !== '') ada++; } 
+    for(const jenis of dokumenJenisList) {
+        const arr = docs[jenis.id];
+        if(Array.isArray(arr) && arr.length > 0) ada++;
+    } 
     return { ada, total, lengkap: ada === total }; 
 }
 
-async function downloadDokumen(jamaahId, jenisId, jenisNama, jamaahNama) {
-    const data = dokumenData[jamaahId]?.[jenisId];
+async function downloadDokumen(jamaahId, jenisId, jenisNama, jamaahNama, idx = 0) {
+    const arr = dokumenData[jamaahId]?.[jenisId];
+    const data = Array.isArray(arr) ? arr[idx] : arr;
     if (!data) return showToast('Dokumen tidak ditemukan!');
     try {
         const res = await fetch(data);
         const blob = await res.blob();
-        const isPDF = blob.type.includes('pdf');
-        const ext = isPDF ? 'pdf' : (blob.type.includes('png') ? 'png' : blob.type.includes('gif') ? 'gif' : 'jpg');
+        const ext = blob.type.includes('png') ? 'png' : blob.type.includes('gif') ? 'gif' : 'jpg';
+        const suffix = arr?.length > 1 ? `_${idx+1}` : '';
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = jenisNama + '_' + jamaahNama.replace(/ /g,'_') + '.' + ext;
+        a.download = `${jenisNama}_${jamaahNama.replace(/ /g,'_')}${suffix}.${ext}`;
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 3000);
-        showToast('⬇️ Dokumen didownload!');
-    } catch(e) {
-        showToast('❌ Gagal download: ' + e.message);
-    }
+        showToast('⬇️ Foto didownload!');
+    } catch(e) { showToast('❌ Gagal download: ' + e.message); }
 }
 
-async function bagikanDokumen(jamaahId, jenisId, jenisNama, jamaahNama) {
-    const data = dokumenData[jamaahId]?.[jenisId];
+async function bagikanDokumen(jamaahId, jenisId, jenisNama, jamaahNama, idx = 0) {
+    const arr = dokumenData[jamaahId]?.[jenisId];
+    const data = Array.isArray(arr) ? arr[idx] : arr;
     if (!data) return showToast('Dokumen tidak ditemukan!');
     try {
         const res = await fetch(data);
         const blob = await res.blob();
-        const isPDF = blob.type.includes('pdf');
-        const ext = isPDF ? 'pdf' : (blob.type.includes('png') ? 'png' : blob.type.includes('gif') ? 'gif' : 'jpg');
-        const namaFile = jenisNama + '_' + jamaahNama + '.' + ext;
+        const ext = blob.type.includes('png') ? 'png' : blob.type.includes('gif') ? 'gif' : 'jpg';
+        const suffix = arr?.length > 1 ? `_${idx+1}` : '';
+        const namaFile = `${jenisNama}_${jamaahNama}${suffix}.${ext}`;
         const file = new File([blob], namaFile, { type: blob.type });
         if (navigator.share && navigator.canShare({ files: [file] })) {
-            await navigator.share({ files: [file], title: jenisNama + ' - ' + jamaahNama });
+            await navigator.share({ files: [file], title: `${jenisNama} - ${jamaahNama}` });
         } else {
-            // Fallback ke download via Blob URL
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url; a.download = namaFile; a.click();
             setTimeout(() => URL.revokeObjectURL(url), 3000);
-            showToast('Bagikan tidak didukung, dokumen didownload');
         }
     } catch(err) {
-        if (err.name !== 'AbortError') showToast('Gagal membagikan dokumen!');
+        if (err.name !== 'AbortError') showToast('Gagal membagikan!');
     }
 }
 
-function previewDokumen(jamaahId, jenisId) {
-    const data = dokumenData[jamaahId]?.[jenisId];
-    if(!data) return;
+let _previewJamaahId = null, _previewJenisId = null, _previewIdx = 0;
+
+function previewDokumen(jamaahId, jenisId, idx = 0) {
+    const arr = dokumenData[jamaahId]?.[jenisId];
+    if(!Array.isArray(arr) || arr.length === 0) return;
     const jamaah = jamaahList.find(j => j.id == jamaahId);
     const jenis = dokumenJenisList.find(j => j.id === jenisId);
-    const isPDF = data.startsWith('data:application/pdf');
 
-    document.getElementById('previewDokumenTitle').innerText = `🔍 ${jenis?.nama} - ${jamaah?.nama_lengkap}`;
+    _previewJamaahId = jamaahId;
+    _previewJenisId = jenisId;
+    _previewIdx = idx;
 
-    // Tampilkan preview sesuai tipe
+    renderPreviewModal(jamaah, jenis, arr, idx);
+    document.getElementById('previewDokumenModal').classList.add('show');
+}
+
+function renderPreviewModal(jamaah, jenis, arr, idx) {
+    const data = arr[idx];
+    const judul = `${jenis?.nama} - ${jamaah?.nama_lengkap}`;
+    document.getElementById('previewDokumenTitle').innerText = `🔍 ${judul} (${idx+1}/${arr.length})`;
+
     const imgEl = document.getElementById('previewDokumenImage');
-    if(isPDF) {
-        imgEl.style.display = 'none';
-        imgEl.dataset.docData = data; // simpan untuk bukaDocPenuh meski tersembunyi
-        // Sembunyikan viewer gambar, tampilkan PDF.js viewer
-        const pdfViewerEl = document.getElementById('previewDokumenPDFViewer');
-        if(pdfViewerEl) pdfViewerEl.style.display = 'block';
-        loadPDFPreview(data);
-        // Tampilkan PDF preview placeholder
-        let pdfPreview = document.getElementById('previewDokumenPDF');
-        if(!pdfPreview) {
-            pdfPreview = document.createElement('div');
-            pdfPreview.id = 'previewDokumenPDF';
-            imgEl.parentNode.insertBefore(pdfPreview, imgEl);
-        }
-        pdfPreview.style.display = 'block';
-        pdfPreview.innerHTML = `
-        <div style="text-align:center;padding:28px;background:#eff6ff;border-radius:14px;margin-bottom:12px;">
-            <div style="font-size:64px;margin-bottom:10px;">📄</div>
-            <div style="font-weight:bold;color:#1d4ed8;font-size:15px;">Dokumen PDF</div>
-            <div style="font-size:12px;color:#888;margin-top:6px;">${jenis?.nama}</div>
+    imgEl.src = data;
+    imgEl.dataset.docData = data;
+    imgEl.style.display = 'block';
+
+    const pdfViewer = document.getElementById('previewDokumenPDFViewer');
+    if(pdfViewer) pdfViewer.style.display = 'none';
+
+    // Navigasi prev/next
+    let navHtml = '';
+    if(arr.length > 1) {
+        navHtml = `<div style="display:flex;align-items:center;justify-content:center;gap:12px;margin:8px 0;">
+            <button onclick="previewNavPrev()" 
+                style="padding:6px 16px;background:${idx>0?'#0D5C4A':'#e2e8f0'};color:${idx>0?'white':'#aaa'};border:none;border-radius:20px;cursor:pointer;font-size:13px;"
+                ${idx===0?'disabled':''}>◀ Prev</button>
+            <span style="font-size:12px;color:#888;">Foto ${idx+1} dari ${arr.length}</span>
+            <button onclick="previewNavNext()"
+                style="padding:6px 16px;background:${idx<arr.length-1?'#0D5C4A':'#e2e8f0'};color:${idx<arr.length-1?'white':'#aaa'};border:none;border-radius:20px;cursor:pointer;font-size:13px;"
+                ${idx===arr.length-1?'disabled':''}>Next ▶</button>
         </div>`;
-    } else {
-        imgEl.style.display = 'block';
-        imgEl.src = data;
-        imgEl.dataset.docData = data; // simpan untuk bukaDocPenuh
-        const pdfPreview = document.getElementById('previewDokumenPDF');
-        if(pdfPreview) pdfPreview.style.display = 'none';
     }
+
+    // Thumbnails
+    let thumbHtml = '';
+    if(arr.length > 1) {
+        thumbHtml = `<div style="display:flex;gap:6px;overflow-x:auto;padding:4px 0;margin-bottom:8px;justify-content:center;">`;
+        arr.forEach((foto, i) => {
+            thumbHtml += `<img src="${foto}" onclick="previewDokumen(${_previewJamaahId},'${_previewJenisId}',${i})"
+                style="width:44px;height:44px;object-fit:cover;border-radius:8px;cursor:pointer;
+                border:3px solid ${i===idx?'#0D5C4A':'transparent'};flex-shrink:0;">`;
+        });
+        thumbHtml += `</div>`;
+    }
+
+    // Tombol aksi per foto
+    const actionsHtml = `
+    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+        <button onclick="cetakDokumenPerJenis(${_previewJamaahId},'${_previewJenisId ? _previewJenisId : ''}','${jenis?.nama}','${jamaah?.nama_lengkap}',${idx})"
+            style="flex:1;padding:8px;background:#0D5C4A;color:white;border:none;border-radius:10px;font-size:12px;cursor:pointer;">
+            🖨️ Cetak
+        </button>
+        <button onclick="downloadDokumen(${_previewJamaahId},'${_previewJenisId}','${jenis?.nama}','${jamaah?.nama_lengkap}',${idx})"
+            style="flex:1;padding:8px;background:#3B82F6;color:white;border:none;border-radius:10px;font-size:12px;cursor:pointer;">
+            ⬇️ Download
+        </button>
+        <button onclick="bagikanDokumen(${_previewJamaahId},'${_previewJenisId}','${jenis?.nama}','${jamaah?.nama_lengkap}',${idx})"
+            style="flex:1;padding:8px;background:#25d366;color:white;border:none;border-radius:10px;font-size:12px;cursor:pointer;">
+            📲 Share
+        </button>
+        <button onclick="confirmDeleteFoto(${_previewJamaahId},'${_previewJenisId}',${idx},'${jenis?.nama}')"
+            style="flex:1;padding:8px;background:#fee2e2;color:#ef4444;border:none;border-radius:10px;font-size:12px;cursor:pointer;">
+            🗑️ Hapus
+        </button>
+    </div>`;
 
     // Data jamaah
-    const container = document.getElementById('previewDokumenDataContainer');
-    if(container && jamaah) {
+    const containerEl = document.getElementById('previewDokumenDataContainer');
+    if(containerEl) {
         const mainFields = [
-            { label: 'Nama Lengkap', value: jamaah.nama_lengkap },
-            { label: 'No. Porsi', value: jamaah.no_porsi },
-            { label: 'NIK', value: jamaah.nik },
-            { label: 'No. Paspor', value: jamaah.no_paspor },
-            { label: 'Tgl Lahir', value: jamaah.tgl_lahir },
-            { label: 'Nama Paspor', value: jamaah.nama_paspor },
-            { label: 'Alamat', value: jamaah.alamat },
+            { label:'Nama Lengkap', value: jamaah?.nama_lengkap },
+            { label:'No. Porsi', value: jamaah?.no_porsi },
+            { label:'NIK', value: jamaah?.nik },
+            { label:'No. Paspor', value: jamaah?.no_paspor },
         ].filter(f => f.value);
-        const dynFields = (dynamicFieldsJamaah || [])
-            .filter(f => jamaah.additional_fields?.[f.name])
-            .map(f => ({ label: f.label, value: jamaah.additional_fields[f.name] }));
-        const allFields = [...mainFields, ...dynFields];
-        if(allFields.length === 0) { container.innerHTML = ''; }
-        else {
-            const allText = allFields.map(f => `${f.label}: ${f.value}`).join('\n');
-            let html = `
-            <div style="margin-top:14px;border-top:1.5px solid #e2e8f0;padding-top:14px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                    <div style="font-weight:bold;font-size:14px;color:#0D5C4A;">📋 Data Jamaah</div>
-                    <button onclick="copyTeks('${encodeURIComponent(allText)}', 'Semua data disalin!')"
-                        style="background:#0D5C4A;color:white;border:none;border-radius:20px;padding:6px 14px;font-size:12px;cursor:pointer;">
-                        📋 Copy Semua
+        let dataHtml = navHtml + thumbHtml + actionsHtml;
+        if(mainFields.length > 0) {
+            const allText = mainFields.map(f=>`${f.label}: ${f.value}`).join('\n');
+            dataHtml += `<div style="margin-top:12px;border-top:1.5px solid #e2e8f0;padding-top:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <div style="font-weight:bold;font-size:13px;color:#0D5C4A;">📋 Data Jamaah</div>
+                    <button onclick="copyTeks('${encodeURIComponent(allText)}','Semua data disalin!')"
+                        style="background:#0D5C4A;color:white;border:none;border-radius:16px;padding:4px 12px;font-size:11px;cursor:pointer;">
+                        📋 Copy
                     </button>
                 </div>`;
-            allFields.forEach(f => {
-                const safeVal = f.value.replace(/'/g, "\\'");
-                html += `
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f0f0f0;">
-                    <div>
-                        <div style="font-size:11px;color:#888;">${escapeHtml(f.label)}</div>
-                        <div style="font-size:14px;color:#1a1a1a;font-weight:500;">${escapeHtml(f.value)}</div>
-                    </div>
-                    <button onclick="copyTeks('${encodeURIComponent(safeVal)}', '${escapeHtml(f.label)} disalin!')"
-                        style="background:#e8f5f0;color:#0D5C4A;border:none;border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;white-space:nowrap;margin-left:8px;">
-                        📋
-                    </button>
+            mainFields.forEach(f => {
+                dataHtml += `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;">
+                    <div><div style="font-size:10px;color:#888;">${f.label}</div>
+                    <div style="font-size:13px;font-weight:500;">${escapeHtml(f.value)}</div></div>
+                    <button onclick="copyTeks('${encodeURIComponent(f.value)}','${f.label} disalin!')"
+                        style="background:#e8f5f0;color:#0D5C4A;border:none;border-radius:14px;padding:4px 10px;font-size:11px;cursor:pointer;">📋</button>
                 </div>`;
             });
-            html += `</div>`;
-            container.innerHTML = html;
+            dataHtml += `</div>`;
         }
+        containerEl.innerHTML = dataHtml;
     }
-    document.getElementById('previewDokumenModal').classList.add('show');
+}
+
+function previewNavPrev() {
+    const arr = dokumenData[_previewJamaahId]?.[_previewJenisId];
+    if(!arr || _previewIdx <= 0) return;
+    _previewIdx--;
+    const jamaah = jamaahList.find(j => j.id == _previewJamaahId);
+    const jenis = dokumenJenisList.find(j => j.id === _previewJenisId);
+    renderPreviewModal(jamaah, jenis, arr, _previewIdx);
+}
+
+function previewNavNext() {
+    const arr = dokumenData[_previewJamaahId]?.[_previewJenisId];
+    if(!arr || _previewIdx >= arr.length - 1) return;
+    _previewIdx++;
+    const jamaah = jamaahList.find(j => j.id == _previewJamaahId);
+    const jenis = dokumenJenisList.find(j => j.id === _previewJenisId);
+    renderPreviewModal(jamaah, jenis, arr, _previewIdx);
+}
+
+async function confirmDeleteFoto(jamaahId, jenisId, idx, jenisNama) {
+    const arr = dokumenData[jamaahId]?.[jenisId];
+    if(!Array.isArray(arr)) return;
+    const total = arr.length;
+    const msg = total === 1 
+        ? `Hapus satu-satunya foto ${jenisNama}?` 
+        : `Hapus foto ${idx+1} dari ${total} foto ${jenisNama}?`;
+    if(!confirm(msg)) return;
+    arr.splice(idx, 1);
+    if(arr.length === 0) delete dokumenData[jamaahId][jenisId];
+    await saveAllDokumenToIndexedDB(jamaahId);
+    renderDokumenList();
+    updateDokumenStats();
+    if(arr.length === 0) {
+        closePreviewDokumenModal();
+        showToast('🗑️ Foto dihapus');
+    } else {
+        _previewIdx = Math.min(idx, arr.length - 1);
+        const jamaah = jamaahList.find(j => j.id == jamaahId);
+        const jenis = dokumenJenisList.find(j => j.id === jenisId);
+        renderPreviewModal(jamaah, jenis, arr, _previewIdx);
+        showToast('🗑️ Foto dihapus');
+    }
+}
+
+async function saveAllDokumenToIndexedDB(jamaahId) {
+    const database = await openIndexedDB();
+    const transaction = database.transaction([STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    return new Promise((resolve, reject) => {
+        const req = store.put({ id: `jamaah_${jamaahId}`, jamaahId, data: dokumenData[jamaahId] || {} });
+        req.onsuccess = resolve;
+        req.onerror = () => reject(req.error);
+    });
 }
 
 
@@ -9847,36 +9930,6 @@ async function renderPDFPage(num) {
     } catch(e) { console.error('PDF render error:', e); }
 }
 
-async function loadPDFPreview(dataUrl) {
-    const viewer = document.getElementById('previewDokumenPDFViewer');
-    const loading = document.getElementById('pdfLoadingMsg');
-    const controls = document.getElementById('pdfControls');
-    viewer.style.display = 'block';
-    loading.style.display = 'block';
-    controls.style.display = 'none';
-    _pdfDoc = null; _pdfPage = 1; _pdfScale = 1.4;
-    try {
-        if(!window.pdfjsLib) {
-            await new Promise((res, rej) => {
-                const s = document.createElement('script');
-                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-                s.onload = res; s.onerror = rej;
-                document.head.appendChild(s);
-            });
-            window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        }
-        const res = await fetch(dataUrl);
-        const buffer = await res.arrayBuffer();
-        _pdfDoc = await window.pdfjsLib.getDocument({ data: buffer }).promise;
-        loading.style.display = 'none';
-        controls.style.display = 'flex';
-        await renderPDFPage(1);
-    } catch(e) {
-        loading.innerHTML = `<div style="color:#ef4444;text-align:center;padding:20px;">❌ Gagal memuat PDF<br><small>${e.message}</small><br><br><small>Pastikan ada koneksi internet untuk pertama kali.</small></div>`;
-    }
-}
-
 function pdfNextPage() { if(!_pdfDoc || _pdfPage >= _pdfDoc.numPages) return; _pdfPage++; renderPDFPage(_pdfPage); }
 function pdfPrevPage() { if(!_pdfDoc || _pdfPage <= 1) return; _pdfPage--; renderPDFPage(_pdfPage); }
 function pdfZoomIn() { if(!_pdfDoc) return; _pdfScale = Math.min(_pdfScale + 0.3, 3.0); renderPDFPage(_pdfPage); }
@@ -9893,16 +9946,6 @@ function closePDFViewer() {
 
 // Preprocessing gambar: grayscale + tingkatkan kontras sebelum OCR
 // Post-processing: rapikan hasil OCR
-async function confirmDeleteDokumen(jamaahId, jenisId, jenisNama) { 
-    if(confirm(`Hapus dokumen ${jenisNama} untuk jamaah ini?`)) { 
-        if (dokumenData[jamaahId] && dokumenData[jamaahId][jenisId]) delete dokumenData[jamaahId][jenisId]; 
-        await saveDokumenToIndexedDB(jamaahId, null, null); 
-        renderDokumenList(); 
-        updateDokumenStats(); 
-        showToast(`🗑️ ${jenisNama} dihapus`); 
-    } 
-}
-
 function remindAllKurangDokumen() {
     const kurang = jamaahList.filter(j => !getStatusKelengkapanDokumen(j.id).lengkap);
     if(kurang.length === 0) { showToast('✅ Semua jamaah sudah lengkap dokumennya!'); return; }
@@ -10130,119 +10173,80 @@ async function kompresGambar(file, maxWidth = 800, quality = 0.7) {
 async function uploadDokumen(jamaahId, jenisId, jenisNama) { 
     const jamaah = jamaahList.find(j => j.id == jamaahId); 
     if (!jamaah) return; 
+    const arr = dokumenData[jamaahId]?.[jenisId] || [];
+    const count = arr.length;
     const modal = document.createElement('div'); 
     modal.style.cssText = `position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;`; 
     modal.innerHTML = `
-    <div style="background:var(--white);border-radius:28px;max-width:400px;width:100%;max-height:90vh;overflow:auto;padding:24px;">
-        <h3 style="color:var(--primary);margin-bottom:8px;">📤 Upload ${jenisNama}</h3>
-        <p style="font-size:13px;color:var(--gray);margin-bottom:14px;">Jamaah: <strong>${escapeHtml(jamaah.nama_lengkap)}</strong></p>
-        
-        <!-- Pilihan tipe file -->
-        <div style="display:flex;gap:8px;margin-bottom:14px;">
-            <button id="btnPilihGambar" onclick="triggerFileInput('gambar')"
-                style="flex:1;padding:12px 8px;background:#0D5C4A;color:white;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;">
-                📷 Foto/Gambar
-            </button>
-            <button id="btnPilihPDF" onclick="triggerFileInput('pdf')"
-                style="flex:1;padding:12px 8px;background:#3B82F6;color:white;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;">
-                📄 PDF
-            </button>
-        </div>
-
-        <input type="file" id="previewFileInputGambar" accept="image/*" style="display:none;">
-        <input type="file" id="previewFileInputPDF" accept="application/pdf" style="display:none;">
-
-        <div id="previewArea" style="background:var(--gray-light);border-radius:16px;padding:20px;text-align:center;margin-bottom:16px;min-height:160px;display:flex;align-items:center;justify-content:center;">
-            <div style="color:var(--gray);">
-                <div style="font-size:48px;margin-bottom:8px;">📁</div>
-                <span style="font-size:13px;">Pilih Foto atau PDF</span>
+    <div style="background:var(--white);border-radius:24px;max-width:400px;width:100%;padding:20px;">
+        <h3 style="color:var(--primary);margin-bottom:4px;">📤 Upload ${jenisNama}</h3>
+        <p style="font-size:12px;color:var(--gray);margin-bottom:14px;">
+            ${escapeHtml(jamaah.nama_lengkap)} · ${count > 0 ? `sudah ${count} foto` : 'belum ada foto'}
+        </p>
+        <input type="file" id="_uploadFileInput" accept="image/*" style="display:none;">
+        <div id="_previewArea" onclick="document.getElementById('_uploadFileInput').click()"
+            style="background:#f8fafc;border:2px dashed #94a3b8;border-radius:14px;padding:28px;
+            text-align:center;margin-bottom:12px;cursor:pointer;min-height:140px;display:flex;align-items:center;justify-content:center;">
+            <div style="color:#94a3b8;">
+                <div style="font-size:40px;margin-bottom:8px;">📷</div>
+                <div style="font-size:13px;">Ketuk untuk pilih foto</div>
+                <div style="font-size:11px;margin-top:4px;">JPG, PNG</div>
             </div>
         </div>
-        <div id="fileInfo" style="font-size:12px;color:var(--gray);margin-bottom:16px;text-align:center;"></div>
-        <div style="display:flex;gap:12px;">
-            <button id="batalBtn" style="flex:1;padding:12px;background:var(--gray-light);border:none;border-radius:40px;font-weight:600;cursor:pointer;color:var(--red);">BATAL</button>
-            <button id="uploadBtn" style="flex:1;padding:12px;background:var(--primary);border:none;border-radius:40px;font-weight:600;cursor:pointer;color:white;" disabled>UPLOAD</button>
+        <div id="_fileInfo" style="font-size:12px;color:#888;text-align:center;margin-bottom:12px;"></div>
+        <div style="display:flex;gap:10px;">
+            <button onclick="this.closest('[style*=fixed]').remove()" 
+                style="flex:1;padding:12px;background:#fee2e2;color:#ef4444;border:none;border-radius:40px;font-weight:600;cursor:pointer;">
+                Batal
+            </button>
+            <button id="_uploadBtn" disabled
+                style="flex:1;padding:12px;background:#0D5C4A;color:white;border:none;border-radius:40px;font-weight:600;cursor:pointer;opacity:0.5;">
+                ⬆️ Upload
+            </button>
         </div>
     </div>`;
     document.body.appendChild(modal);
 
-    let selectedFile = null, selectedType = '', originalSizeKB = 0;
+    let selectedFile = null;
 
-    // Trigger file input sesuai tipe
-    window.triggerFileInput = (tipe) => {
-        selectedType = tipe;
-        if(tipe === 'gambar') modal.querySelector('#previewFileInputGambar').click();
-        else modal.querySelector('#previewFileInputPDF').click();
-    };
-
-    function showPreview(file) {
-        const previewArea = modal.querySelector('#previewArea');
-        const fileInfo = modal.querySelector('#fileInfo');
-        const uploadBtn = modal.querySelector('#uploadBtn');
-        if(!file) { uploadBtn.disabled = true; return; }
-        const sizeKB = (file.size/1024).toFixed(1);
-        const sizeMB = (file.size/(1024*1024)).toFixed(2);
-        originalSizeKB = parseFloat(sizeKB);
-        fileInfo.innerHTML = `📄 ${file.name}<br>📏 ${file.size > 1024*1024 ? sizeMB+' MB' : sizeKB+' KB'}`;
-        if(selectedType === 'pdf') {
-            previewArea.innerHTML = `
-            <div style="text-align:center;">
-                <div style="font-size:60px;margin-bottom:8px;">📄</div>
-                <div style="font-weight:bold;color:#3B82F6;font-size:14px;">${file.name}</div>
-                <div style="font-size:12px;color:#888;margin-top:4px;">PDF siap diupload</div>
-            </div>`;
-        } else {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                previewArea.innerHTML = `<img src="${e.target.result}" style="max-width:100%;max-height:200px;border-radius:12px;object-fit:contain;">`;
-            };
-            reader.readAsDataURL(file);
-        }
-        uploadBtn.disabled = false;
-    }
-
-    // Handler gambar
-    modal.querySelector('#previewFileInputGambar').onchange = (e) => {
+    modal.querySelector('#_uploadFileInput').onchange = (e) => {
         const file = e.target.files[0];
-        if(file) { selectedFile = file; selectedType = 'gambar'; showPreview(file); }
+        if(!file) return;
+        selectedFile = file;
+        const sizeKB = (file.size/1024).toFixed(0);
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            modal.querySelector('#_previewArea').innerHTML = 
+                `<img src="${ev.target.result}" style="max-width:100%;max-height:180px;border-radius:10px;object-fit:contain;">`;
+        };
+        reader.readAsDataURL(file);
+        modal.querySelector('#_fileInfo').textContent = `📄 ${file.name} · ${sizeKB} KB`;
+        const btn = modal.querySelector('#_uploadBtn');
+        btn.disabled = false; btn.style.opacity = '1';
     };
 
-    // Handler PDF
-    modal.querySelector('#previewFileInputPDF').onchange = (e) => {
-        const file = e.target.files[0];
-        if(file) { selectedFile = file; selectedType = 'pdf'; showPreview(file); }
-    };
-
-    modal.querySelector('#batalBtn').onclick = () => { delete window.triggerFileInput; modal.remove(); };
-
-    modal.querySelector('#uploadBtn').onclick = async () => {
+    modal.querySelector('#_uploadBtn').onclick = async () => {
         if(!selectedFile) return;
-        const uploadBtn = modal.querySelector('#uploadBtn');
-        uploadBtn.disabled = true;
-        uploadBtn.innerHTML = '⏳ Uploading...';
+        const btn = modal.querySelector('#_uploadBtn');
+        btn.disabled = true; btn.textContent = '⏳ Menyimpan...';
         try {
+            let fileToUpload = selectedFile;
+            if(selectedFile.size > 512*1024) fileToUpload = await kompresGambar(selectedFile, 800, 0.75);
             const reader = new FileReader();
-            reader.onload = async (event) => {
-                try {
-                    await saveDokumenToIndexedDB(jamaahId, jenisId, event.target.result);
-                    await loadDokumenDataFromIndexedDB();
-                    renderDokumenList();
-                    updateDokumenStats();
-                    const sizeKB = (selectedFile.size/1024).toFixed(1);
-                    showToast(`✅ ${jenisNama} berhasil diupload (${sizeKB} KB)`);
-                    delete window.triggerFileInput;
-                    modal.remove();
-                } catch(err) { showToast('❌ Gagal upload: ' + err.message); uploadBtn.disabled = false; uploadBtn.innerHTML = 'UPLOAD'; }
+            reader.onload = async (ev) => {
+                await saveDokumenToIndexedDB(jamaahId, jenisId, ev.target.result);
+                await loadDokumenDataFromIndexedDB();
+                renderDokumenList();
+                updateDokumenStats();
+                const finalKB = (fileToUpload.size/1024).toFixed(0);
+                showToast(`✅ Foto ${jenisNama} disimpan (${finalKB} KB)`);
+                modal.remove();
             };
-            // Kompres gambar, PDF langsung
-            if(selectedType === 'gambar' && selectedFile.size > 512*1024) {
-                showToast('🔄 Mengompres gambar...');
-                const compressed = await kompresGambar(selectedFile, 800, 0.7);
-                reader.readAsDataURL(compressed);
-            } else {
-                reader.readAsDataURL(selectedFile);
-            }
-        } catch(e) { showToast('❌ Error: ' + e.message); uploadBtn.disabled = false; uploadBtn.innerHTML = 'UPLOAD'; }
+            reader.readAsDataURL(fileToUpload);
+        } catch(e) {
+            showToast('❌ Gagal: ' + e.message);
+            btn.disabled = false; btn.textContent = '⬆️ Upload';
+        }
     };
 }
 
