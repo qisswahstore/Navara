@@ -1927,41 +1927,41 @@
     <!-- Dashboard Info Cards -->
     <div id="homeDashboardExtra" style="padding:0 16px;">
 
-        <!-- Progress Lunas -->
-        <div style="background:white;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                <div style="font-weight:700;font-size:14px;color:#1a1a1a;">✅ Pelunasan Jamaah</div>
-                <div id="homeLunasCount" style="font-size:13px;font-weight:700;color:#0D5C4A;">0 / 0</div>
+        <!-- Progress Lunas + Piutang + Countdown dalam 1 card compact -->
+        <div style="background:white;border-radius:14px;padding:12px 14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div style="font-weight:700;font-size:12px;color:#1a1a1a;">✅ Pelunasan Jamaah</div>
+                <div id="homeLunasCount" style="font-size:12px;font-weight:700;color:#0D5C4A;">0 / 0</div>
             </div>
-            <div style="background:#e8f5f0;border-radius:100px;height:12px;overflow:hidden;">
+            <div style="background:#e8f5f0;border-radius:100px;height:8px;overflow:hidden;">
                 <div id="homeLunasBar" style="height:100%;width:0%;background:linear-gradient(90deg,#0D5C4A,#10B981);border-radius:100px;transition:width 0.6s ease;"></div>
             </div>
-            <div id="homeLunasLabel" style="font-size:12px;color:#888;margin-top:6px;">Memuat data...</div>
+            <div id="homeLunasLabel" style="font-size:11px;color:#888;margin-top:4px;">Memuat data...</div>
         </div>
 
         <!-- Piutang + Countdown -->
-        <div style="display:flex;gap:10px;margin-bottom:12px;">
-            <div style="flex:1;background:white;border-radius:16px;padding:14px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-                <div style="font-size:11px;color:#888;margin-bottom:4px;">💰 Total Piutang</div>
-                <div id="homePiutangBesar" style="font-size:16px;font-weight:800;color:#ef4444;">Rp 0</div>
-                <div id="homePiutangLabel" style="font-size:11px;color:#888;margin-top:2px;">dari jamaah</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <div style="flex:1;background:white;border-radius:14px;padding:10px 12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+                <div style="font-size:10px;color:#888;margin-bottom:2px;">💰 Total Piutang</div>
+                <div id="homePiutangBesar" style="font-size:14px;font-weight:800;color:#ef4444;">Rp 0</div>
+                <div id="homePiutangLabel" style="font-size:10px;color:#888;margin-top:1px;">dari jamaah</div>
             </div>
-            <div id="homeCountdownCard" style="flex:1;background:linear-gradient(135deg,#0D5C4A,#0a3d31);border-radius:16px;padding:14px;box-shadow:0 2px 12px rgba(13,92,74,0.3);display:none;">
-                <div id="homeCountdownJenis" style="font-size:11px;color:rgba(255,255,255,0.7);margin-bottom:4px;">🕋 Haji</div>
-                <div id="homeCountdownHari" style="font-size:22px;font-weight:900;color:white;">-</div>
-                <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;">hari lagi</div>
+            <div id="homeCountdownCard" style="flex:1;background:linear-gradient(135deg,#0D5C4A,#0a3d31);border-radius:14px;padding:10px 12px;box-shadow:0 2px 8px rgba(13,92,74,0.25);display:none;">
+                <div id="homeCountdownJenis" style="font-size:10px;color:rgba(255,255,255,0.7);margin-bottom:2px;">🕋 Haji</div>
+                <div id="homeCountdownHari" style="font-size:18px;font-weight:900;color:white;line-height:1;">-</div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.7);margin-top:2px;">hari lagi</div>
             </div>
         </div>
 
         <!-- Quick Action -->
-        <div style="display:flex;gap:8px;margin-bottom:14px;">
-            <button onclick="openQuickTambahJamaah()" style="flex:1;padding:11px 6px;background:#0D5C4A;color:white;border:none;border-radius:12px;font-size:12px;font-weight:700;cursor:pointer;">
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <button onclick="openQuickTambahJamaah()" style="flex:1;padding:9px 6px;background:#0D5C4A;color:white;border:none;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;">
                 ➕ Jamaah
             </button>
-            <button onclick="openQuickBayar()" style="flex:1;padding:11px 6px;background:#10B981;color:white;border:none;border-radius:12px;font-size:12px;font-weight:700;cursor:pointer;">
+            <button onclick="openQuickBayar()" style="flex:1;padding:9px 6px;background:#10B981;color:white;border:none;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;">
                 💳 Bayar
             </button>
-            <button onclick="shareAllJamaahToWA()" style="flex:1;padding:11px 6px;background:#25d366;color:white;border:none;border-radius:12px;font-size:12px;font-weight:700;cursor:pointer;">
+            <button onclick="shareAllJamaahToWA()" style="flex:1;padding:9px 6px;background:#25d366;color:white;border:none;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;">
                 📲 WA All
             </button>
         </div>
