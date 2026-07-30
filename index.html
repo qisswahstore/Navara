@@ -1921,7 +1921,7 @@
     <div class="stats-row">
         <div class="stat-mini-card"><i class="fas fa-coins"></i><div class="stat-label">Total Kas</div><div class="stat-number" id="homeStatKas">Rp 0</div></div>
         <div class="stat-mini-card"><i class="fas fa-users"></i><div class="stat-label">Jamaah</div><div class="stat-number" id="homeStatJamaah">0</div></div>
-        <div class="stat-mini-card"><i class="fas fa-money-bill-wave"></i><div class="stat-label">Total Piutang</div><div class="stat-number" id="homeStatPiutang">Rp 0</div></div>
+        <div class="stat-mini-card"><i class="fas fa-money-bill-wave"></i><div class="stat-label">Total Tagihan</div><div class="stat-number" id="homeStatPiutang">Rp 0</div></div>
         <div class="stat-mini-card"><i class="fas fa-user-check"></i><div class="stat-label">Jamaah Lunas</div><div class="stat-number" id="homeStatLunas">0</div></div>
     </div>
     <!-- Dashboard Info Cards -->
@@ -1942,7 +1942,7 @@
         <!-- Piutang + Countdown -->
         <div style="display:flex;gap:8px;margin-bottom:10px;">
             <div style="flex:1;background:white;border-radius:14px;padding:10px 12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-                <div style="font-size:10px;color:#888;margin-bottom:2px;">💰 Total Piutang</div>
+                <div style="font-size:10px;color:#888;margin-bottom:2px;">💰 Total Tagihan</div>
                 <div id="homePiutangBesar" style="font-size:14px;font-weight:800;color:#ef4444;">Rp 0</div>
                 <div id="homePiutangLabel" style="font-size:10px;color:#888;margin-top:1px;">dari jamaah</div>
             </div>
@@ -1984,7 +1984,7 @@
                 <div class="dashboard-stat-card"><div class="label"> TOTAL KAS</div><div class="value" id="dashTotalKas">Rp 0</div></div>
                 <div class="dashboard-stat-card"><div class="label"> TOTAL JAMAAH</div><div class="value" id="dashTotalJamaah">0</div></div>
                 <div class="dashboard-stat-card"><div class="label"> JAMAAH LUNAS</div><div class="value" id="dashTotalLunas">0</div></div>
-                <div class="dashboard-stat-card"><div class="label"> TOTAL PIUTANG</div><div class="value" id="dashTotalPiutang">Rp 0</div></div>
+                <div class="dashboard-stat-card"><div class="label"> TOTAL TAGIHAN</div><div class="value" id="dashTotalPiutang">Rp 0</div></div>
             </div>
             <div class="chart-container"><canvas id="kasChart"></canvas></div>
             <div class="chart-container"><canvas id="paymentChart"></canvas></div>
@@ -2238,7 +2238,7 @@
     <div class="header-premium header-premium-small"><div class="back-header"><i class="fas fa-arrow-left" onclick="showPage('home')"></i><h2>Pembayaran</h2><div style="width:30px;"></div></div></div>
     <div class="card-premium">
         <div class="payment-dashboard-card"><div style="font-weight:700; margin-bottom:8px;"><i class="fas fa-file-invoice-dollar"></i> Manajemen Pembayaran</div>
-        <div class="payment-stats-row"><div class="payment-stat-item"><h4> Total Uang Masuk</h4><div class="payment-value" id="paymentTotalMasuk">Rp 0</div></div><div class="payment-stat-item"><h4> Total Piutang</h4><div class="payment-value" id="paymentTotalPiutang">Rp 0</div></div></div></div>
+        <div class="payment-stats-row"><div class="payment-stat-item"><h4> Total Uang Masuk</h4><div class="payment-value" id="paymentTotalMasuk">Rp 0</div></div><div class="payment-stat-item"><h4> Total Tagihan</h4><div class="payment-value" id="paymentTotalPiutang">Rp 0</div></div></div></div>
         <div class="rekap-card"><div class="rekap-title"><i class="fas fa-chart-pie"></i> REKAP PEMBAYARAN</div>
         <div class="rekap-dua-kolom"><div class="rekap-lunas"><h4><i class="fas fa-check-circle"></i> LUNAS</h4><div class="rekap-number" id="rekapLunasCount">0 org</div></div><div class="rekap-belum-lunas"><h4><i class="fas fa-clock"></i> BELUM LUNAS</h4><div class="rekap-number" id="rekapBelumCount">0 org</div></div></div>
         <div class="total-rekap"><div class="total-rekap-item"><span> Total Tertagih:</span><span class="value" id="totalTertagih">Rp 0</span></div><div class="total-rekap-item"><span> Total Terbayar:</span><span class="value" id="totalTerbayar">Rp 0</span></div><div class="persen-bar"><div class="persen-fill" id="persenFill"></div></div><div class="total-rekap-item"><span> Persentase:</span><span class="value" id="persentaseText">0%</span></div></div></div>
@@ -3799,7 +3799,7 @@ async function cetakDashboardHTML() {
             <div class="stat-box"><div class="label">TOTAL KAS</div><div class="value">Rp ${formatAngka(totalKas)}</div></div>
             <div class="stat-box"><div class="label">TOTAL JAMAAH</div><div class="value">${totalJamaah}</div></div>
             <div class="stat-box"><div class="label">JAMAAH LUNAS</div><div class="value">${totalLunas}</div></div>
-            <div class="stat-box"><div class="label">TOTAL PIUTANG</div><div class="value">Rp ${formatAngka(totalPiutang)}</div></div>
+            <div class="stat-box"><div class="label">TOTAL TAGIHAN</div><div class="value">Rp ${formatAngka(totalPiutang)}</div></div>
         </div>
         <h2>5 JAMAAH DENGAN TAGIHAN TERBESAR</h2>
         <table><thead><tr><th>No</th><th>Nama Jamaah</th><th>Total Paket</th><th>Sisa Tagihan</th></tr></thead><tbody>${topHtml}</tbody></table>
@@ -9961,11 +9961,7 @@ function remindAllKurangDokumen() {
         <div style="font-weight:bold;font-size:16px;color:#0D5C4A;margin-bottom:4px;">📲 Reminder WA Dokumen</div>
         <div style="font-size:12px;color:#888;margin-bottom:14px;">${kurang.length} jamaah belum lengkap dokumennya</div>
 
-        <div style="background:#fef3c7;border-radius:10px;padding:10px 12px;font-size:12px;color:#92400e;margin-bottom:14px;">
-            ⚠️ WA akan dibuka satu per satu. Kirim pesan lalu kembali ke app untuk lanjut ke jamaah berikutnya.
-        </div>
-
-        <div style="max-height:280px;overflow-y:auto;margin-bottom:14px;">
+        <div style="max-height:320px;overflow-y:auto;margin-bottom:14px;">
         ${kurang.map((j, i) => {
             const st = getStatusKelengkapanDokumen(j.id);
             const kurangList = dokumenJenisList.filter(d => !dokumenData[j.id]?.[d.id]);
@@ -9985,10 +9981,7 @@ function remindAllKurangDokumen() {
         </div>
 
         <div style="display:flex;gap:8px;">
-            <button onclick="kirimSemuaReminderDokumen()" style="flex:1;padding:11px;background:#25d366;color:white;border:none;border-radius:12px;font-weight:bold;cursor:pointer;font-size:13px;">
-                📲 Kirim Semua
-            </button>
-            <button onclick="this.closest('[style*=fixed]').remove()" style="flex:1;padding:11px;background:#e2e8f0;color:#333;border:none;border-radius:12px;font-weight:bold;cursor:pointer;font-size:13px;">
+            <button onclick="this.closest('[style*=fixed]').remove()" style="flex:1;padding:12px;background:#e2e8f0;color:#333;border:none;border-radius:12px;font-weight:bold;cursor:pointer;font-size:13px;">
                 Tutup
             </button>
         </div>
@@ -10238,8 +10231,16 @@ async function uploadDokumen(jamaahId, jenisId, jenisNama) {
                 await loadDokumenDataFromIndexedDB();
                 renderDokumenList();
                 updateDokumenStats();
+                const originalKB = (selectedFile.size/1024).toFixed(0);
                 const finalKB = (fileToUpload.size/1024).toFixed(0);
-                showToast(`✅ Foto ${jenisNama} disimpan (${finalKB} KB)`);
+                const originalMB = (selectedFile.size/(1024*1024)).toFixed(1);
+                const hemat = Math.round((1 - fileToUpload.size/selectedFile.size)*100);
+                const wasCompressed = selectedFile.size > 512*1024;
+                if(wasCompressed) {
+                    showToast(`✅ Foto ${jenisNama} disimpan!\n${originalMB}MB → ${finalKB}KB (hemat ${hemat}%)`);
+                } else {
+                    showToast(`✅ Foto ${jenisNama} disimpan (${finalKB} KB)`);
+                }
                 modal.remove();
             };
             reader.readAsDataURL(fileToUpload);
