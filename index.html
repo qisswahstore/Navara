@@ -3922,8 +3922,28 @@ function hitungUmroh() {
     lastCalculatedPrice=jual; 
     lastCalculatedPaket=lokasi; 
     lastCalculatedTotalJam=nJam; 
-    let hasil=document.getElementById('hasilEstimasi'); 
-    hasil.innerHTML=`<div class="res-item"><span>Modal Pokok / Pax</span><b>${f(sub)}</b></div><div class="res-item"><span>Total Omzet Grup</span><b>${f(totalOmzet)}</b></div><div class="res-item"><span>Profit Kotor Grup</span><span>${f(profitKotor)}</span></div><div class="res-item"><span>Biaya TL</span><span>${f(biayaTL)}</span></div><div class="res-item"><span>Profit Per Pax</span><span>${f(profitPerPax)}</span></div><div class="res-item" style="color:#2ecc71"><span>PROFIT BERSIH</span><b>${f(bersih)}</b></div><div class="res-item" style="border-top:2px solid var(--accent); margin-top:10px; padding-top:10px; flex-direction:column; align-items:center;"><span style="font-weight:bold">HARGA BROSUR</span><span class="highlight">${f(jual)}</span><p style="font-size:10px; margin-top:5px;">*Berdasarkan ${nJam-nFoc} jamaah bayar dan ${nFoc} gratis</p></div><div class="action-buttons" style="display:flex; gap:10px; margin-top:15px;"><button class="btn" onclick="salinRingkasan()" style="background:#34495e; margin-top:0; flex:1;">SALIN</button><button class="btn" onclick="cetakEstimasiPDFJamaah()" style="background:#2980b9; margin-top:0; flex:1; font-size:11px;">🖨️ CETAK JAMAAH</button><button class="btn" onclick="cetakEstimasiPDFInternal()" style="background:var(--orange); margin-top:0; flex:1; font-size:11px;">🖨️ CETAK INTERNAL</button></div>`; 
+    let hasil=document.getElementById('hasilEstimasi');
+    const cp = (val, lbl) => `<button onclick="copyTeks('${encodeURIComponent(val)}','${lbl} disalin!')" style="background:rgba(255,255,255,0.15);color:white;border:none;border-radius:12px;padding:4px 10px;font-size:11px;cursor:pointer;flex-shrink:0;">📋</button>`;
+    hasil.innerHTML=`
+    <div class="res-item"><span>Modal Pokok / Pax</span><div style="display:flex;align-items:center;gap:6px;"><b>${f(sub)}</b>${cp(f(sub),'Modal Pokok')}</div></div>
+    <div class="res-item"><span>Total Omzet Grup</span><div style="display:flex;align-items:center;gap:6px;"><b>${f(totalOmzet)}</b>${cp(f(totalOmzet),'Total Omzet')}</div></div>
+    <div class="res-item"><span>Profit Kotor Grup</span><div style="display:flex;align-items:center;gap:6px;"><span>${f(profitKotor)}</span>${cp(f(profitKotor),'Profit Kotor')}</div></div>
+    <div class="res-item"><span>Biaya TL</span><div style="display:flex;align-items:center;gap:6px;"><span>${f(biayaTL)}</span>${cp(f(biayaTL),'Biaya TL')}</div></div>
+    <div class="res-item"><span>Profit Per Pax</span><div style="display:flex;align-items:center;gap:6px;"><span>${f(profitPerPax)}</span>${cp(f(profitPerPax),'Profit Per Pax')}</div></div>
+    <div class="res-item" style="color:#2ecc71"><span>PROFIT BERSIH</span><div style="display:flex;align-items:center;gap:6px;"><b>${f(bersih)}</b>${cp(f(bersih),'Profit Bersih')}</div></div>
+    <div class="res-item" style="border-top:2px solid var(--accent);margin-top:10px;padding-top:10px;flex-direction:column;align-items:center;">
+        <span style="font-weight:bold">HARGA BROSUR</span>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+            <span class="highlight">${f(jual)}</span>
+            ${cp(f(jual),'Harga Brosur')}
+        </div>
+        <p style="font-size:10px;margin-top:5px;">*Berdasarkan ${nJam-nFoc} jamaah bayar dan ${nFoc} gratis</p>
+    </div>
+    <div class="action-buttons" style="display:flex;gap:10px;margin-top:15px;">
+        <button class="btn" onclick="salinRingkasan()" style="background:#34495e;margin-top:0;flex:1;">SALIN</button>
+        <button class="btn" onclick="cetakEstimasiPDFJamaah()" style="background:#2980b9;margin-top:0;flex:1;font-size:11px;">🖨️ CETAK JAMAAH</button>
+        <button class="btn" onclick="cetakEstimasiPDFInternal()" style="background:var(--orange);margin-top:0;flex:1;font-size:11px;">🖨️ CETAK INTERNAL</button>
+    </div>`; 
     hasil.style.display='block'; 
     hasil.scrollIntoView({behavior:"smooth"}); 
 }
@@ -9686,36 +9706,55 @@ function renderPreviewModal(jamaah, jenis, arr, idx) {
         </button>
     </div>`;
 
-    // Data jamaah
+    // Data jamaah - semua field seperti sebelumnya
     const containerEl = document.getElementById('previewDokumenDataContainer');
-    if(containerEl) {
+    if(containerEl && jamaah) {
         const mainFields = [
-            { label:'Nama Lengkap', value: jamaah?.nama_lengkap },
-            { label:'No. Porsi', value: jamaah?.no_porsi },
-            { label:'NIK', value: jamaah?.nik },
-            { label:'No. Paspor', value: jamaah?.no_paspor },
+            { label:'Nama Lengkap', value: jamaah.nama_lengkap },
+            { label:'Nama Paspor', value: jamaah.nama_paspor },
+            { label:'No. Porsi', value: jamaah.no_porsi },
+            { label:'NIK', value: jamaah.nik },
+            { label:'No. Paspor', value: jamaah.no_paspor },
+            { label:'Jenis Kelamin', value: jamaah.jenis_kelamin },
+            { label:'Tempat Lahir', value: jamaah.tempat_lahir },
+            { label:'Tanggal Lahir', value: jamaah.tgl_lahir },
+            { label:'Kab / Kota', value: jamaah.kab_kota },
+            { label:'Alamat', value: jamaah.alamat },
+            { label:'No. HP', value: jamaah.no_hp },
         ].filter(f => f.value);
+
+        // Field dinamis dari additional_fields
+        const dynFields = (dynamicFieldsJamaah || [])
+            .filter(f => jamaah.additional_fields?.[f.name])
+            .map(f => ({ label: f.label, value: jamaah.additional_fields[f.name] }));
+
+        const allFields = [...mainFields, ...dynFields];
+        if(allFields.length === 0) { containerEl.innerHTML = ''; return; }
+
+        const allText = allFields.map(f=>`${f.label}: ${f.value}`).join('\n');
         let dataHtml = navHtml + thumbHtml + actionsHtml;
-        if(mainFields.length > 0) {
-            const allText = mainFields.map(f=>`${f.label}: ${f.value}`).join('\n');
-            dataHtml += `<div style="margin-top:12px;border-top:1.5px solid #e2e8f0;padding-top:12px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                    <div style="font-weight:bold;font-size:13px;color:#0D5C4A;">📋 Data Jamaah</div>
-                    <button onclick="copyTeks('${encodeURIComponent(allText)}','Semua data disalin!')"
-                        style="background:#0D5C4A;color:white;border:none;border-radius:16px;padding:4px 12px;font-size:11px;cursor:pointer;">
-                        📋 Copy
-                    </button>
-                </div>`;
-            mainFields.forEach(f => {
-                dataHtml += `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;">
-                    <div><div style="font-size:10px;color:#888;">${f.label}</div>
-                    <div style="font-size:13px;font-weight:500;">${escapeHtml(f.value)}</div></div>
-                    <button onclick="copyTeks('${encodeURIComponent(f.value)}','${f.label} disalin!')"
-                        style="background:#e8f5f0;color:#0D5C4A;border:none;border-radius:14px;padding:4px 10px;font-size:11px;cursor:pointer;">📋</button>
-                </div>`;
-            });
-            dataHtml += `</div>`;
-        }
+        dataHtml += `<div style="margin-top:12px;border-top:1.5px solid #e2e8f0;padding-top:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="font-weight:bold;font-size:13px;color:#0D5C4A;">📋 Data Jamaah</div>
+                <button onclick="copyTeks('${encodeURIComponent(allText)}','Semua data disalin!')"
+                    style="background:#0D5C4A;color:white;border:none;border-radius:16px;padding:5px 14px;font-size:11px;cursor:pointer;">
+                    📋 Copy Semua
+                </button>
+            </div>`;
+        allFields.forEach(f => {
+            const safeVal = encodeURIComponent(f.value);
+            dataHtml += `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0;">
+                <div>
+                    <div style="font-size:10px;color:#888;">${escapeHtml(f.label)}</div>
+                    <div style="font-size:13px;font-weight:500;color:#1a1a1a;">${escapeHtml(f.value)}</div>
+                </div>
+                <button onclick="copyTeks('${safeVal}','${escapeHtml(f.label)} disalin!')"
+                    style="background:#e8f5f0;color:#0D5C4A;border:none;border-radius:14px;padding:5px 10px;font-size:11px;cursor:pointer;margin-left:8px;flex-shrink:0;">
+                    📋
+                </button>
+            </div>`;
+        });
+        dataHtml += `</div>`;
         containerEl.innerHTML = dataHtml;
     }
 }
