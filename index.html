@@ -2003,7 +2003,9 @@
 <div id="page-estimasi" class="page">
     <div class="header-premium header-premium-small"><div class="back-header"><i class="fas fa-arrow-left" onclick="showPage('home')"></i><h2>Cuan Plan Umroh</h2><div style="width:30px;"></div></div></div>
     <div class="card-premium">
-        <div class="logo-box text-center"><img src="https://img.icons8.com/color/96/kaaba.png" style="width:50px;"></div>
+        <div class="logo-box text-center" id="estimasiLogoBox">
+            <img id="estimasiLogo" src="https://img.icons8.com/color/96/kaaba.png" style="width:50px;border-radius:8px;">
+        </div>
         <p class="text-center" style="color:var(--gray); font-size:0.8rem;" id="dashFooterNama">Navara</p>
         <div class="section-title" style="margin-top:15px;"><span>DATA ROMBONGAN</span></div>
         <div class="input-group"><label>Nama Paket / Lokasi</label><input type="text" id="lokasiPaket" value="Program 9 HARI"></div>
@@ -3248,6 +3250,18 @@ function internalShowPage(pageId) {
     if (pageId === 'home') { updateLicenseBanner(); updateLicenseSummary(); updateHomeStats(); }
     if (pageId === 'lisensi') { renderLicenseStatus(); }
     if (pageId === 'googledrive') { initGoogleDrivePage(); }
+    if (pageId === 'estimasi') {
+        // Update logo dari konfigurasi
+        try {
+            const cfg = getKonfigurasiProData();
+            const logoEl = document.getElementById('estimasiLogo');
+            const namaEl = document.getElementById('dashFooterNama');
+            if(namaEl) namaEl.textContent = cfg.instansi1?.nama || 'Navara';
+            if(logoEl && cfg.logo) {
+                logoEl.src = cfg.logo;
+            }
+        } catch(e) {}
+    }
     if (pageId === 'setting') { updateLicenseSummary(); }
     if (pageId === 'konfigurasi') { if(window.loadKonfigurasiPro) window.loadKonfigurasiPro(); setTimeout(applyKonfigurasiLock, 400); }
     if (pageId === 'catatan') { if(window.renderCatatanList) window.renderCatatanList(); const fab = document.getElementById('catatanFabBtn'); if(fab) fab.style.display = 'flex'; }
