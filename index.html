@@ -3251,15 +3251,13 @@ function internalShowPage(pageId) {
     if (pageId === 'lisensi') { renderLicenseStatus(); }
     if (pageId === 'googledrive') { initGoogleDrivePage(); }
     if (pageId === 'estimasi') {
-        // Update logo dari konfigurasi
         try {
             const cfg = getKonfigurasiProData();
             const logoEl = document.getElementById('estimasiLogo');
             const namaEl = document.getElementById('dashFooterNama');
             if(namaEl) namaEl.textContent = cfg.instansi1?.nama || 'Navara';
-            if(logoEl && cfg.logo) {
-                logoEl.src = cfg.logo;
-            }
+            const logoSrc = cfg.instansi1?.logo || cfg.instansi2?.logo || '';
+            if(logoEl && logoSrc) logoEl.src = logoSrc;
         } catch(e) {}
     }
     if (pageId === 'setting') { updateLicenseSummary(); }
