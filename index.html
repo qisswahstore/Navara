@@ -2017,6 +2017,11 @@
         <div class="row"><div class="input-group"><label>Diskon/PIC</label><input type="text" id="cPIC" class="money-input" value="0"></div><div class="input-group"><label>Lain-lain</label><input type="text" id="cLain" class="money-input" value="0"></div></div>
         <div class="section-title"><span>Margin</span></div>
         <div class="input-group"><label>Profit (%)</label><input type="number" id="profitPct" value="5"></div>
+        <div class="section-title"><span>Buffer Diskon <small style="font-weight:normal;color:#888;">(Opsional)</small></span></div>
+        <div class="input-group">
+            <input type="text" id="cBuffer" class="money-input" value="0">
+            <small style="color:#888;font-size:11px;margin-top:4px;display:block;">Ditambahkan ke harga brosur — tidak kena markup profit</small>
+        </div>
         <button class="btn btn-primary" onclick="hitungUmroh()"><i class="fas fa-calculator"></i> HITUNG ESTIMASI</button>
         <button class="btn btn-orange mt-2" onclick="resetEstimasiToDefault()"><i class="fas fa-undo-alt"></i> RESET KE DEFAULT</button>
     </div>
@@ -3886,7 +3891,8 @@ function saveEstimasiData() {
         cAplikasi:document.getElementById('cAplikasi').value, 
         cPIC:document.getElementById('cPIC').value, 
         cLain:document.getElementById('cLain').value, 
-        profitPct:document.getElementById('profitPct').value 
+        profitPct:document.getElementById('profitPct').value,
+        cBuffer:document.getElementById('cBuffer').value
     }; 
     localStorage.setItem('navara_estimasi_data',JSON.stringify(estimasiData)); 
 }
@@ -3907,7 +3913,8 @@ function loadEstimasiData() {
         if(data.cAplikasi) document.getElementById('cAplikasi').value=data.cAplikasi; 
         if(data.cPIC) document.getElementById('cPIC').value=data.cPIC; 
         if(data.cLain) document.getElementById('cLain').value=data.cLain; 
-        if(data.profitPct) document.getElementById('profitPct').value=data.profitPct; 
+        if(data.profitPct) document.getElementById('profitPct').value=data.profitPct;
+        if(data.cBuffer) document.getElementById('cBuffer').value=data.cBuffer;
     } 
 }
 
@@ -3925,7 +3932,9 @@ function hitungUmroh() {
     const biayaTL=sub*nTL; 
     const bersih=profitKotor-biayaTL; 
     const profitPerPax=bersih/(nJam-nFoc); 
-    const jual=((sub*nJam)+profitKotor)/(nJam-nFoc); 
+    const jualBase=((sub*nJam)+profitKotor)/(nJam-nFoc);
+    const buffer=parseRupiah(document.getElementById('cBuffer')?.value||'0');
+    const jual=jualBase+buffer;
     const totalOmzet=jual*(nJam-nFoc); 
     const f=n=>"Rp "+Math.round(n).toLocaleString('id-ID'); 
     const lokasi=document.getElementById('lokasiPaket').value; 
@@ -3943,6 +3952,7 @@ function hitungUmroh() {
     <div class="res-item"><span>Biaya TL</span><div style="display:flex;align-items:center;gap:6px;"><span>${f(biayaTL)}</span>${cp(f(biayaTL),'Biaya TL')}</div></div>
     <div class="res-item"><span>Profit Per Pax</span><div style="display:flex;align-items:center;gap:6px;"><span>${f(profitPerPax)}</span>${cp(f(profitPerPax),'Profit Per Pax')}</div></div>
     <div class="res-item" style="color:#2ecc71"><span>PROFIT BERSIH</span><div style="display:flex;align-items:center;gap:6px;"><b>${f(bersih)}</b>${cp(f(bersih),'Profit Bersih')}</div></div>
+    ${buffer > 0 ? `<div class="res-item" style="color:#f59e0b;"><span>+ Buffer Diskon</span><div style="display:flex;align-items:center;gap:6px;"><span>${f(buffer)}</span>${cp(f(buffer),'Buffer Diskon')}</div></div>` : ''}
     <div class="res-item" style="border-top:2px solid var(--accent);margin-top:10px;padding-top:10px;flex-direction:column;align-items:center;">
         <span style="font-weight:bold">HARGA BROSUR</span>
         <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
@@ -4021,7 +4031,11 @@ async function cetakEstimasiPDFInternal() {
     const biayaTL = sub*nTL;
     const profitBersih = profitKotor - biayaTL;
     const profitPerPax = profitBersih/(nJam-nFoc);
+    const buffer = pr(est.cBuffer||'0');
+    const jualBase = ((sub*nJam)+profitKotor)/(nJam-nFoc);
+    const jual = jualBase + buffer;
     const items = [['Tiket',pr(est.cTiket)],['Land Arrangement (LA)',pr(est.cLA)],['Asuransi',pr(est.cAsuransi)],['Handling',pr(est.cHandling)],['PIC/Guide',pr(est.cPIC)],['Perlengkapan',pr(est.cAlat)],['Biaya Aplikasi',pr(est.cAplikasi)],['Lain-lain',pr(est.cLain)]];
+    if(buffer > 0) items.push(['Buffer Diskon', buffer]);
     let komponenHtml = '';
     items.forEach(([label, val]) => {
         if(val > 0) komponenHtml += `<tr><td style="padding:8px;border-bottom:1px solid #eee;">${label}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${f(val)}</td></tr>`;
@@ -4101,7 +4115,8 @@ function resetEstimasiToDefault() {
         document.getElementById('cAplikasi').value="60.000"; 
         document.getElementById('cPIC').value="0"; 
         document.getElementById('cLain').value="0"; 
-        document.getElementById('profitPct').value="5"; 
+        document.getElementById('profitPct').value="5";
+        document.getElementById('cBuffer').value="0";
         saveEstimasiData(); 
         showToast('Data estimasi direset ke default'); 
         hitungUmroh(); 
