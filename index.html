@@ -3993,6 +3993,11 @@ function hitungUmroh() {
     const firstJual = hargaPerTipe.length > 0 ? hargaPerTipe[0].jual : jual;
     lastCalculatedText=`📊 *Ringkasan Estimasi Paket*\n${garis}\n📍 *${lokasi}*\n👥 *Total Jamaah:* ${nJam}\n💰 *Harga per Pax:* *${f(firstJual)}*\n${garis}\n📞 *Silakan hubungi admin untuk detail.*`; 
     lastCalculatedPrice=firstJual;
+    lastCalculatedPaket=lokasi;
+    lastCalculatedTotalJam=nJam;
+
+    // cp harus didefinisikan SEBELUM hargaBrosurRows
+    const cp = (val, lbl) => `<button onclick="copyTeks('${encodeURIComponent(val)}','${lbl} disalin!')" style="background:rgba(255,255,255,0.15);color:white;border:none;border-radius:12px;padding:4px 10px;font-size:11px;cursor:pointer;flex-shrink:0;">📋</button>`;
 
     // Buat baris harga brosur per tipe
     let hargaBrosurRows = '';
@@ -4021,7 +4026,6 @@ function hitungUmroh() {
         </div>`;
     }
     let hasil=document.getElementById('hasilEstimasi');
-    const cp = (val, lbl) => `<button onclick="copyTeks('${encodeURIComponent(val)}','${lbl} disalin!')" style="background:rgba(255,255,255,0.15);color:white;border:none;border-radius:12px;padding:4px 10px;font-size:11px;cursor:pointer;flex-shrink:0;">📋</button>`;
     hasil.innerHTML=`
     <div class="res-item"><span>Modal Pokok / Pax</span><div style="display:flex;align-items:center;gap:6px;"><b>${f(sub)}</b>${cp(f(sub),'Modal Pokok')}</div></div>
     <div class="res-item"><span>Total Omzet Grup</span><div style="display:flex;align-items:center;gap:6px;"><b>${f(totalOmzet)}</b>${cp(f(totalOmzet),'Total Omzet')}</div></div>
