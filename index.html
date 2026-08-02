@@ -2001,7 +2001,24 @@
 
 <!-- ESTIMASI PAGE -->
 <div id="page-estimasi" class="page">
-    <div class="header-premium header-premium-small"><div class="back-header"><i class="fas fa-arrow-left" onclick="showPage('home')"></i><h2>Cuan Plan Umroh</h2><div style="width:30px;"></div></div></div>
+    <div class="header-premium header-premium-small"><div class="back-header"><i class="fas fa-arrow-left" onclick="showPage('home')"></i><h2>Cuan Plan</h2><div style="width:30px;"></div></div></div>
+
+    <!-- Tab Navigation -->
+    <div style="display:flex;background:white;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:10;">
+        <button id="tabEstimasi" onclick="switchCuanTab('estimasi')"
+            style="flex:1;padding:12px;border:none;background:none;font-size:13px;font-weight:700;
+            color:#0D5C4A;border-bottom:3px solid #0D5C4A;cursor:pointer;">
+            📊 Estimasi
+        </button>
+        <button id="tabRekap" onclick="switchCuanTab('rekap')"
+            style="flex:1;padding:12px;border:none;background:none;font-size:13px;font-weight:600;
+            color:#888;border-bottom:3px solid transparent;cursor:pointer;">
+            📋 Rekap Aktual
+        </button>
+    </div>
+
+    <!-- TAB ESTIMASI -->
+    <div id="cuanTabEstimasi">
     <div class="card-premium">
         <div class="logo-box text-center" id="estimasiLogoBox">
             <img id="estimasiLogo" src="https://img.icons8.com/color/96/kaaba.png" style="width:50px;border-radius:8px;">
@@ -2049,6 +2066,27 @@
         <button class="btn btn-orange mt-2" onclick="resetEstimasiToDefault()"><i class="fas fa-undo-alt"></i> RESET KE DEFAULT</button>
     </div>
     <div id="hasilEstimasi" class="res-card" style="display:none;"></div>
+    </div><!-- end cuanTabEstimasi -->
+
+    <!-- TAB REKAP AKTUAL -->
+    <div id="cuanTabRekap" style="display:none;padding:16px;">
+        <div style="background:white;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+            <div style="font-weight:700;font-size:15px;color:#0D5C4A;margin-bottom:4px;">📋 Rekap Profit Aktual</div>
+            <div style="font-size:12px;color:#888;">Berdasarkan data jamaah yang sudah diinput</div>
+        </div>
+        <div id="rekapAktualContent">
+            <div style="text-align:center;padding:40px;color:#888;">
+                <div style="font-size:40px;margin-bottom:10px;">📊</div>
+                <div>Klik tombol di bawah untuk hitung rekap</div>
+            </div>
+        </div>
+        <button onclick="hitungRekapAktual()"
+            style="width:100%;padding:14px;background:#0D5C4A;color:white;border:none;
+            border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;">
+            🔄 Hitung Rekap Aktual
+        </button>
+    </div>
+
 </div>
 
 <!-- KAS PAGE -->
@@ -2369,6 +2407,14 @@
             <div class="row"><div class="config-row"><label>Telepon</label><input type="text" id="cfg_telp2"></div><div class="config-row"><label>Email</label><input type="email" id="cfg_email2"></div></div>
             <div class="row"><div class="config-row"><label>No. Izin</label><input type="text" id="cfg_izin2"></div><div class="config-row"><label>Pimpinan</label><input type="text" id="cfg_pimpinan2"></div></div>
             <div class="config-row"><label>Jabatan</label><input type="text" id="cfg_jabatan2"></div>
+        </div>
+        <div class="config-section"><h3><i class="fas fa-bed"></i> Tipe Paket</h3>
+            <div style="font-size:12px;color:#888;margin-bottom:10px;">Digunakan sebagai pilihan tipe kamar di database jamaah dan rekap profit Cuan Plan.</div>
+            <div id="tipePaketList" style="margin-bottom:10px;"></div>
+            <div style="display:flex;gap:8px;">
+                <input type="text" id="tipePaketBaru" placeholder="Contoh: Quad" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #ddd;font-size:14px;background:var(--input-bg);color:var(--text);">
+                <button onclick="tambahTipePaket()" style="padding:10px 16px;background:#0D5C4A;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;">+ Tambah</button>
+            </div>
         </div>
         <div class="config-section"><h3><i class="fas fa-plane-departure"></i> Info Keberangkatan</h3>
             <div class="config-row"><label>Jenis Perjalanan</label>
@@ -3289,8 +3335,7 @@ function internalShowPage(pageId) {
         } catch(e) {}
     }
     if (pageId === 'setting') { updateLicenseSummary(); }
-    if (pageId === 'konfigurasi') { if(window.loadKonfigurasiPro) window.loadKonfigurasiPro(); setTimeout(applyKonfigurasiLock, 400); }
-    if (pageId === 'catatan') { if(window.renderCatatanList) window.renderCatatanList(); const fab = document.getElementById('catatanFabBtn'); if(fab) fab.style.display = 'flex'; }
+    if (pageId === 'konfigurasi') { if(window.loadKonfigurasiPro) window.loadKonfigurasiPro(); setTimeout(applyKonfigurasiLock, 400); }    if (pageId === 'catatan') { if(window.renderCatatanList) window.renderCatatanList(); const fab = document.getElementById('catatanFabBtn'); if(fab) fab.style.display = 'flex'; }
     else { const fab = document.getElementById('catatanFabBtn'); if(fab) fab.style.display = 'none'; }
     if (pageId === 'uploaddokumen') { 
         // PENTING: Reload jamaah data DAN dokumen data untuk memastikan semua ter-load
@@ -4178,6 +4223,242 @@ async function cetakEstimasiPDFInternal() {
     const win = window.open('','_blank');
     if(!win) return showToast('Izinkan popup untuk cetak!');
     win.document.write(html); injectWatermarkToPrintWin(win); win.document.close();
+}
+
+// ==================== TIPE PAKET ====================
+function getTipePaket() {
+    const cfg = getKonfigurasiProData();
+    return cfg.tipe_paket || ['Quad', 'Triple', 'Double'];
+}
+
+function saveTipePaket(list) {
+    konfigurasiPro.tipe_paket = list;
+    localStorage.setItem('navara_konfigurasi_pro', JSON.stringify(konfigurasiPro));
+}
+
+function renderTipePaketList() {
+    const el = document.getElementById('tipePaketList');
+    if(!el) return;
+    const list = getTipePaket();
+    if(list.length === 0) {
+        el.innerHTML = '<div style="color:#888;font-size:12px;">Belum ada tipe paket</div>';
+        return;
+    }
+    el.innerHTML = list.map((t, i) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;
+            padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px;">
+            <span style="font-weight:600;font-size:14px;">🛏️ ${escapeHtml(t)}</span>
+            <button onclick="hapusTipePaket(${i})"
+                style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;
+                padding:4px 10px;font-size:12px;cursor:pointer;">Hapus</button>
+        </div>`).join('');
+}
+
+function tambahTipePaket() {
+    const input = document.getElementById('tipePaketBaru');
+    const nama = input?.value.trim();
+    if(!nama) return showToast('Isi nama tipe paket dulu!');
+    const list = getTipePaket();
+    if(list.includes(nama)) return showToast('Tipe paket sudah ada!');
+    list.push(nama);
+    saveTipePaket(list);
+    renderTipePaketList();
+    input.value = '';
+    showToast(`✅ Tipe "${nama}" ditambahkan`);
+}
+
+function hapusTipePaket(idx) {
+    const list = getTipePaket();
+    const nama = list[idx];
+    if(!confirm(`Hapus tipe "${nama}"?`)) return;
+    list.splice(idx, 1);
+    saveTipePaket(list);
+    renderTipePaketList();
+    showToast(`🗑️ Tipe "${nama}" dihapus`);
+}
+
+function getTipePaketOptions() {
+    return getTipePaket().map(t =>
+        `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`
+    ).join('');
+}
+
+function initTipePaket() {
+    // Set default kalau belum ada
+    if(!konfigurasiPro.tipe_paket) {
+        konfigurasiPro.tipe_paket = ['Quad', 'Triple', 'Double'];
+        localStorage.setItem('navara_konfigurasi_pro', JSON.stringify(konfigurasiPro));
+    }
+}
+
+function switchCuanTab(tab) {
+    const tabEstimasi = document.getElementById('cuanTabEstimasi');
+    const tabRekap = document.getElementById('cuanTabRekap');
+    const btnEstimasi = document.getElementById('tabEstimasi');
+    const btnRekap = document.getElementById('tabRekap');
+    if(tab === 'estimasi') {
+        tabEstimasi.style.display = 'block';
+        tabRekap.style.display = 'none';
+        btnEstimasi.style.color = '#0D5C4A';
+        btnEstimasi.style.borderBottomColor = '#0D5C4A';
+        btnEstimasi.style.fontWeight = '700';
+        btnRekap.style.color = '#888';
+        btnRekap.style.borderBottomColor = 'transparent';
+        btnRekap.style.fontWeight = '600';
+    } else {
+        tabEstimasi.style.display = 'none';
+        tabRekap.style.display = 'block';
+        btnRekap.style.color = '#0D5C4A';
+        btnRekap.style.borderBottomColor = '#0D5C4A';
+        btnRekap.style.fontWeight = '700';
+        btnEstimasi.style.color = '#888';
+        btnEstimasi.style.borderBottomColor = 'transparent';
+        btnEstimasi.style.fontWeight = '600';
+    }
+}
+
+function hitungRekapAktual() {
+    const container = document.getElementById('rekapAktualContent');
+    if(!container) return;
+
+    if(jamaahList.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:30px;color:#888;">Belum ada data jamaah</div>';
+        return;
+    }
+
+    const est = getEstimasiData ? getEstimasiData() : null;
+    const f = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+
+    // Kumpulkan data per tipe
+    const tipeData = {};
+    const tanpaTipe = [];
+    const hargaBawahStandar = [];
+
+    jamaahList.forEach(j => {
+        const tipe = j.additional_fields?.tipe_paket || '';
+        // Ambil harga aktual dari additional_fields
+        let hargaAktual = 0;
+        if(j.additional_fields) {
+            for(const key in j.additional_fields) {
+                if(key.toLowerCase().includes('harga') || key.toLowerCase().includes('paket') || key.toLowerCase().includes('total')) {
+                    const val = parseInt((j.additional_fields[key]||'0').toString().replace(/\D/g,''));
+                    if(!isNaN(val) && val > 0) { hargaAktual = val; break; }
+                }
+            }
+        }
+
+        if(!tipe) {
+            tanpaTipe.push(j.nama_lengkap);
+            return;
+        }
+
+        if(!tipeData[tipe]) tipeData[tipe] = { jamaah: [], totalOmzet: 0, totalModal: 0 };
+
+        // Modal per jamaah berdasarkan tipe kamar dari estimasi
+        let modalPerJamaah = 0;
+        if(est) {
+            const pr = v => parseInt((v||'0').toString().replace(/\D/g,''))||0;
+            const subBase = pr(est.cTiket)+pr(est.cAsuransi)+pr(est.cHandling)+pr(est.cPIC)+pr(est.cAlat)+pr(est.cAplikasi)+pr(est.cLain);
+            const laMap = {
+                'Quad': pr(est.cLAquad||est.cLA||'0'),
+                'Triple': pr(est.cLAtriple||'0'),
+                'Double': pr(est.cLAdouble||'0'),
+            };
+            const laVal = laMap[tipe] || pr(est.cLAquad||est.cLA||'0');
+            modalPerJamaah = subBase + laVal;
+        }
+
+        tipeData[tipe].jamaah.push({ nama: j.nama_lengkap, harga: hargaAktual });
+        tipeData[tipe].totalOmzet += hargaAktual;
+        tipeData[tipe].totalModal += modalPerJamaah;
+
+        // Cek harga di bawah modal
+        if(modalPerJamaah > 0 && hargaAktual > 0 && hargaAktual < modalPerJamaah) {
+            hargaBawahStandar.push({
+                nama: j.nama_lengkap, tipe,
+                harga: hargaAktual, modal: modalPerJamaah,
+                selisih: modalPerJamaah - hargaAktual
+            });
+        }
+    });
+
+    let grandOmzet = 0, grandModal = 0;
+    let html = '';
+
+    // Render per tipe
+    Object.keys(tipeData).forEach(tipe => {
+        const d = tipeData[tipe];
+        const profit = d.totalOmzet - d.totalModal;
+        grandOmzet += d.totalOmzet;
+        grandModal += d.totalModal;
+
+        html += `<div style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+            <div style="font-weight:700;font-size:14px;color:#0D5C4A;margin-bottom:8px;">🛏️ ${escapeHtml(tipe)} (${d.jamaah.length} jamaah)</div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;">
+                <span style="font-size:13px;color:#666;">Total Pemasukan</span>
+                <span style="font-size:13px;font-weight:600;">${f(d.totalOmzet)}</span>
+            </div>
+            ${d.totalModal > 0 ? `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;">
+                <span style="font-size:13px;color:#666;">Total Modal</span>
+                <span style="font-size:13px;">${f(d.totalModal)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;">
+                <span style="font-size:13px;font-weight:700;color:${profit>=0?'#10B981':'#ef4444'}">Profit</span>
+                <span style="font-size:13px;font-weight:700;color:${profit>=0?'#10B981':'#ef4444'}">${f(profit)}</span>
+            </div>` : ''}
+        </div>`;
+    });
+
+    // Grand Total
+    const grandProfit = grandOmzet - grandModal;
+    html += `<div style="background:linear-gradient(135deg,#0D5C4A,#0a3d31);border-radius:14px;padding:16px;margin-bottom:10px;color:white;">
+        <div style="font-weight:700;font-size:15px;margin-bottom:10px;">💰 TOTAL KESELURUHAN</div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.2);">
+            <span style="font-size:13px;opacity:0.8;">Total Pemasukan</span>
+            <span style="font-size:13px;font-weight:700;">${f(grandOmzet)}</span>
+        </div>
+        ${grandModal > 0 ? `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.2);">
+            <span style="font-size:13px;opacity:0.8;">Total Modal</span>
+            <span style="font-size:13px;">${f(grandModal)}</span>
+        </div>` : ''}
+        <div style="display:flex;justify-content:space-between;padding:8px 0 0;">
+            <span style="font-size:15px;font-weight:700;">PROFIT BERSIH</span>
+            <span style="font-size:18px;font-weight:900;color:#2ecc71;">${f(grandProfit)}</span>
+        </div>
+        <div style="font-size:11px;opacity:0.6;margin-top:6px;text-align:right;">
+            Total ${jamaahList.length} jamaah · ${Object.keys(tipeData).length} tipe
+        </div>
+    </div>`;
+
+    // Peringatan harga di bawah standar
+    if(hargaBawahStandar.length > 0) {
+        html += `<div style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:14px;padding:14px;margin-bottom:10px;">
+            <div style="font-weight:700;color:#92400e;margin-bottom:8px;">⚠️ ${hargaBawahStandar.length} Jamaah Harga di Bawah Modal</div>
+            ${hargaBawahStandar.map(h => `
+            <div style="padding:6px 0;border-bottom:1px solid rgba(245,158,11,0.2);font-size:12px;">
+                <div style="font-weight:600;">${escapeHtml(h.nama)} (${escapeHtml(h.tipe)})</div>
+                <div style="color:#92400e;">Harga: ${f(h.harga)} · Modal: ${f(h.modal)}</div>
+                <div style="color:#ef4444;font-weight:700;">Kurang: ${f(h.selisih)}</div>
+            </div>`).join('')}
+        </div>`;
+    }
+
+    // Jamaah tanpa tipe
+    if(tanpaTipe.length > 0) {
+        html += `<div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:14px;padding:14px;margin-bottom:10px;">
+            <div style="font-weight:700;color:#888;margin-bottom:6px;">⚠️ ${tanpaTipe.length} Jamaah Belum Ada Tipe Paket</div>
+            <div style="font-size:12px;color:#888;">${tanpaTipe.map(n=>escapeHtml(n)).join(', ')}</div>
+        </div>`;
+    }
+
+    container.innerHTML = html;
+}
+
+function getEstimasiData() {
+    try {
+        const saved = localStorage.getItem('navara_estimasi_data');
+        return saved ? JSON.parse(saved) : null;
+    } catch(e) { return null; }
 }
 
 function toggleLAAccordion() {
@@ -6394,7 +6675,8 @@ function confirmDeleteJamaahById(id){
 function renderJamaahForm(){ 
     const container=document.getElementById('jamaahFormContainer'); 
     if(!container) return; 
-    let html=`<div class="dynamic-field"><label>Nama Lengkap <span style="color:red;">*</span></label><input type="text" id="jamaahNamaLengkap" placeholder="Nama lengkap jamaah"></div>`; 
+    const tipeOpts = getTipePaketOptions();
+    let html=`<div class="dynamic-field"><label>Nama Lengkap <span style="color:red;">*</span></label><input type="text" id="jamaahNamaLengkap" placeholder="Nama lengkap jamaah"></div>`;
     for(const field of dynamicFieldsJamaah){ 
         let inputHtml;
         if(field.type === 'textarea') {
@@ -6406,7 +6688,17 @@ function renderJamaahForm(){
             inputHtml = `<input type="${field.type}" id="jamaahField_${field.name}">`;
         }
         html+=`<div class="dynamic-field"><label>${escapeHtml(field.label)}</label>${inputHtml}</div>`; 
-    } 
+    }
+    // Field permanen Tipe Paket
+    if(tipeOpts) {
+        html += `<div class="dynamic-field" style="border-top:1.5px solid #e2e8f0;padding-top:14px;margin-top:4px;">
+            <label style="font-weight:700;color:#0D5C4A;">🛏️ Tipe Paket</label>
+            <select id="jamaahTipePaket" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid #ddd;font-size:14px;background:var(--input-bg);color:var(--text);">
+                <option value="">-- Pilih Tipe --</option>
+                ${tipeOpts}
+            </select>
+        </div>`;
+    }
     container.innerHTML=html; 
 }
 
@@ -6429,7 +6721,10 @@ function editJamaah(index){
     for(const field of dynamicFieldsJamaah){ 
         const input=document.getElementById(`jamaahField_${field.name}`); 
         if(input) input.value=j.additional_fields?.[field.name]||''; 
-    } 
+    }
+    // Load Tipe Paket
+    const tipePaketEl = document.getElementById('jamaahTipePaket');
+    if(tipePaketEl) tipePaketEl.value = j.additional_fields?.tipe_paket || '';
     document.getElementById('jamaahModal').classList.add('show'); 
 }
 
@@ -6440,13 +6735,15 @@ function saveJamaah(){
     for(const field of dynamicFieldsJamaah){ 
         const input=document.getElementById(`jamaahField_${field.name}`); 
         if(input) additional[field.name]=input.value.trim(); 
-    } 
+    }
+    // Simpan Tipe Paket
+    const tipePaketEl = document.getElementById('jamaahTipePaket');
+    if(tipePaketEl) additional['tipe_paket'] = tipePaketEl.value;
     const now=new Date().toLocaleDateString('id-ID')+' '+new Date().toLocaleTimeString('id-ID'); 
     if(editingJamaahId!==null){ 
         jamaahList[editingJamaahId]={...jamaahList[editingJamaahId], nama_lengkap:nama, additional_fields:additional, updated_at:now}; 
         showToast('Data diupdate'); 
     } else {
-        // Tidak ada batas jamaah - semua gratis unlimited
         jamaahList.push({id:Date.now(), nama_lengkap:nama, additional_fields:additional, created_at:now}); 
         showToast('Data ditambahkan'); 
     } 
@@ -12389,6 +12686,7 @@ async function loadKonfigurasiPro() {
     const elTgl = document.getElementById('cfg_tgl_keberangkatan');
     if(elJenis) elJenis.value = kb.jenis || '';
     if(elTgl) elTgl.value = kb.tanggal || '';
+    renderTipePaketList();
     updateHeaderFromConfig();
 }
 
@@ -12455,6 +12753,7 @@ async function saveKonfigurasiPro() {
         jenis: document.getElementById('cfg_jenis_perjalanan')?.value || '',
         tanggal: document.getElementById('cfg_tgl_keberangkatan')?.value || ''
     };
+    // tipe_paket disimpan lewat tambahTipePaket/hapusTipePaket langsung
     localStorage.setItem('navara_konfigurasi_pro', JSON.stringify(konfigurasiPro)); // keep for compat
     await idbSet(STORE_KONFIGURASI, 'konfigurasi_pro', konfigurasiPro);
     showToast('✅ Konfigurasi berhasil disimpan!');
@@ -12694,6 +12993,7 @@ async function initPremium() {
     updateHeaderFromConfig();
     updateStorageInfo();
     initHistoryState();
+    initTipePaket();
 
     // Auto masuk app tanpa pilihan — Google Drive bisa dihubungkan di Setting > Backup
     setTimeout(() => {
