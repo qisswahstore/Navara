@@ -2011,7 +2011,37 @@
         <div class="input-group"><label>Nama Paket / Lokasi</label><input type="text" id="lokasiPaket" value="Program 9 HARI"></div>
         <div class="row"><div class="input-group"><label>Total Pax</label><input type="number" id="totJam" value="21"></div><div class="input-group"><label>Gratis</label><input type="number" id="jamGratis" value="1"></div><div class="input-group"><label>Jumlah TL</label><input type="number" id="numTL" value="1"></div></div>
         <div class="section-title"><span>KOMPONEN BIAYA</span></div>
-        <div class="row"><div class="input-group"><label>Tiket</label><input type="text" id="cTiket" class="money-input" value="15.450.000"></div><div class="input-group"><label>LA / Hotel</label><input type="text" id="cLA" class="money-input" value="14.450.000"></div></div>
+        <div class="row">
+            <div class="input-group"><label>Tiket</label><input type="text" id="cTiket" class="money-input" value="15.450.000"></div>
+            <div class="input-group"><label>Asuransi</label><input type="text" id="cAsuransi" class="money-input" value="60.000"></div>
+        </div>
+
+        <!-- LA/Hotel Accordion -->
+        <div style="margin-bottom:12px;">
+            <div onclick="toggleLAAccordion()" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#f0f9f6;border:1.5px solid #0D5C4A;border-radius:12px;cursor:pointer;">
+                <div style="font-weight:700;font-size:13px;color:#0D5C4A;">🏨 LA / Hotel (per Pax)</div>
+                <span id="laAccordionIcon" style="color:#0D5C4A;font-size:14px;">▼</span>
+            </div>
+            <div id="laAccordionBody" style="border:1.5px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:12px;background:white;">
+                <div class="input-group" style="margin-bottom:8px;">
+                    <label style="font-size:12px;color:#555;">Quad (4 orang/kamar)</label>
+                    <input type="text" id="cLAquad" class="money-input" value="14.450.000" oninput="updateLAPreview()">
+                </div>
+                <div class="input-group" style="margin-bottom:8px;">
+                    <label style="font-size:12px;color:#555;">Triple (3 orang/kamar)</label>
+                    <input type="text" id="cLAtriple" class="money-input" value="0" oninput="updateLAPreview()">
+                </div>
+                <div class="input-group" style="margin-bottom:8px;">
+                    <label style="font-size:12px;color:#555;">Double (2 orang/kamar)</label>
+                    <input type="text" id="cLAdouble" class="money-input" value="0" oninput="updateLAPreview()">
+                </div>
+                <div class="input-group" style="margin-bottom:0;">
+                    <label style="font-size:12px;color:#555;">Single (1 orang/kamar)</label>
+                    <input type="text" id="cLAsingle" class="money-input" value="0" oninput="updateLAPreview()">
+                </div>
+                <div id="laPreview" style="font-size:11px;color:#888;margin-top:8px;text-align:center;"></div>
+            </div>
+        </div>
         <div class="row"><div class="input-group"><label>Asuransi</label><input type="text" id="cAsuransi" class="money-input" value="60.000"></div><div class="input-group"><label>Handling</label><input type="text" id="cHandling" class="money-input" value="100.000"></div></div>
         <div class="row"><div class="input-group"><label>Perlengkapan</label><input type="text" id="cAlat" class="money-input" value="1.000.000"></div><div class="input-group"><label>Aplikasi</label><input type="text" id="cAplikasi" class="money-input" value="60.000"></div></div>
         <div class="row"><div class="input-group"><label>Diskon/PIC</label><input type="text" id="cPIC" class="money-input" value="0"></div><div class="input-group"><label>Lain-lain</label><input type="text" id="cLain" class="money-input" value="0"></div></div>
@@ -3884,7 +3914,11 @@ function saveEstimasiData() {
         jamGratis:document.getElementById('jamGratis').value, 
         numTL:document.getElementById('numTL').value, 
         cTiket:document.getElementById('cTiket').value, 
-        cLA:document.getElementById('cLA').value, 
+        cLA: document.getElementById('cLAquad')?.value || '0',
+        cLAquad: document.getElementById('cLAquad')?.value || '0',
+        cLAtriple: document.getElementById('cLAtriple')?.value || '0',
+        cLAdouble: document.getElementById('cLAdouble')?.value || '0',
+        cLAsingle: document.getElementById('cLAsingle')?.value || '0',
         cAsuransi:document.getElementById('cAsuransi').value, 
         cHandling:document.getElementById('cHandling').value, 
         cAlat:document.getElementById('cAlat').value, 
@@ -3906,7 +3940,12 @@ function loadEstimasiData() {
         if(data.jamGratis) document.getElementById('jamGratis').value=data.jamGratis; 
         if(data.numTL) document.getElementById('numTL').value=data.numTL; 
         if(data.cTiket) document.getElementById('cTiket').value=data.cTiket; 
-        if(data.cLA) document.getElementById('cLA').value=data.cLA; 
+        if(data.cLAquad !== undefined) document.getElementById('cLAquad').value = data.cLAquad;
+        else if(data.cLA) document.getElementById('cLAquad').value = data.cLA; // migrasi data lama
+        if(data.cLAtriple !== undefined) document.getElementById('cLAtriple').value = data.cLAtriple;
+        if(data.cLAdouble !== undefined) document.getElementById('cLAdouble').value = data.cLAdouble;
+        if(data.cLAsingle !== undefined) document.getElementById('cLAsingle').value = data.cLAsingle;
+        updateLAPreview();
         if(data.cAsuransi) document.getElementById('cAsuransi').value=data.cAsuransi; 
         if(data.cHandling) document.getElementById('cHandling').value=data.cHandling; 
         if(data.cAlat) document.getElementById('cAlat').value=data.cAlat; 
@@ -3923,8 +3962,15 @@ function hitungUmroh() {
     saveEstimasiData(); 
     const nJam=parseInt(document.getElementById('totJam').value)||0; 
     if(nJam<=0) return showToast("Isi jamaah!"); 
-    const ids=['cTiket','cLA','cAsuransi','cHandling','cPIC','cAlat','cAplikasi','cLain']; 
-    const sub=ids.map(id=>parseRupiah(document.getElementById(id).value)).reduce((a,b)=>a+b,0); 
+    const ids=['cTiket','cAsuransi','cHandling','cPIC','cAlat','cAplikasi','cLain'];
+    const subBase=ids.map(id=>parseRupiah(document.getElementById(id).value)).reduce((a,b)=>a+b,0);
+    // LA per tipe kamar
+    const laQuad  = parseRupiah(document.getElementById('cLAquad')?.value||'0');
+    const laTriple= parseRupiah(document.getElementById('cLAtriple')?.value||'0');
+    const laDouble= parseRupiah(document.getElementById('cLAdouble')?.value||'0');
+    const laSingle= parseRupiah(document.getElementById('cLAsingle')?.value||'0');
+    // Gunakan Quad sebagai default untuk kalkulasi utama
+    const sub = subBase + laQuad; 
     const nFoc=parseInt(document.getElementById('jamGratis').value)||0; 
     const nTL=parseInt(document.getElementById('numTL').value)||0; 
     const pPct=(parseFloat(document.getElementById('profitPct').value)||0)/100; 
@@ -3939,10 +3985,52 @@ function hitungUmroh() {
     const f=n=>"Rp "+Math.round(n).toLocaleString('id-ID'); 
     const lokasi=document.getElementById('lokasiPaket').value; 
     const garis="━━━━━━━━━━━━━━━━━━━"; 
-    lastCalculatedText=`📊 *Ringkasan Estimasi Paket*\n${garis}\n📍 *${lokasi}*\n👥 *Total Jamaah:* ${nJam}\n💰 *Harga per Pax:* *${f(jual)}*\n${garis}\n📞 *Silakan hubungi admin untuk detail.*`; 
-    lastCalculatedPrice=jual; 
-    lastCalculatedPaket=lokasi; 
-    lastCalculatedTotalJam=nJam; 
+    // Hitung harga brosur per tipe kamar yang diisi
+    const laTypes = [
+        { nama:'Quad',   la: laQuad,   aktif: laQuad > 0 },
+        { nama:'Triple', la: laTriple, aktif: laTriple > 0 },
+        { nama:'Double', la: laDouble, aktif: laDouble > 0 },
+        { nama:'Single', la: laSingle, aktif: laSingle > 0 },
+    ].filter(t => t.aktif);
+
+    const hargaPerTipe = laTypes.map(t => {
+        const subT = subBase + t.la;
+        const profitKotorT = (subT * nJam) * pPct;
+        const jualBaseT = ((subT * nJam) + profitKotorT) / (nJam - nFoc);
+        return { nama: t.nama, jual: jualBaseT + buffer };
+    });
+
+    // Untuk lastCalculatedPrice gunakan tipe pertama
+    const firstJual = hargaPerTipe.length > 0 ? hargaPerTipe[0].jual : jual;
+    lastCalculatedText=`📊 *Ringkasan Estimasi Paket*\n${garis}\n📍 *${lokasi}*\n👥 *Total Jamaah:* ${nJam}\n💰 *Harga per Pax:* *${f(firstJual)}*\n${garis}\n📞 *Silakan hubungi admin untuk detail.*`; 
+    lastCalculatedPrice=firstJual;
+
+    // Buat baris harga brosur per tipe
+    let hargaBrosurRows = '';
+    if(hargaPerTipe.length <= 1) {
+        // Hanya 1 tipe — tampilan lama
+        hargaBrosurRows = `<div class="res-item" style="border-top:2px solid var(--accent);margin-top:10px;padding-top:10px;flex-direction:column;align-items:center;">
+            <span style="font-weight:bold">HARGA BROSUR</span>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+                <span class="highlight">${f(jual)}</span>
+                ${cp(f(jual),'Harga Brosur')}
+            </div>
+            <p style="font-size:10px;margin-top:5px;">*Berdasarkan ${nJam-nFoc} jamaah bayar dan ${nFoc} gratis</p>
+        </div>`;
+    } else {
+        hargaBrosurRows = `<div style="border-top:2px solid var(--accent);margin-top:10px;padding-top:10px;">
+            <div style="font-weight:bold;text-align:center;margin-bottom:8px;color:var(--accent);">HARGA BROSUR</div>
+            ${hargaPerTipe.map(t => `
+            <div class="res-item" style="padding:6px 0;">
+                <span style="font-size:13px;color:#666;">${t.nama}</span>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="highlight" style="font-size:16px;">${f(t.jual)}</span>
+                    ${cp(f(t.jual),'Harga '+t.nama)}
+                </div>
+            </div>`).join('')}
+            <p style="font-size:10px;margin-top:6px;text-align:center;color:#888;">*Berdasarkan ${nJam-nFoc} jamaah bayar dan ${nFoc} gratis</p>
+        </div>`;
+    }
     let hasil=document.getElementById('hasilEstimasi');
     const cp = (val, lbl) => `<button onclick="copyTeks('${encodeURIComponent(val)}','${lbl} disalin!')" style="background:rgba(255,255,255,0.15);color:white;border:none;border-radius:12px;padding:4px 10px;font-size:11px;cursor:pointer;flex-shrink:0;">📋</button>`;
     hasil.innerHTML=`
@@ -3953,14 +4041,7 @@ function hitungUmroh() {
     <div class="res-item"><span>Profit Per Pax</span><div style="display:flex;align-items:center;gap:6px;"><span>${f(profitPerPax)}</span>${cp(f(profitPerPax),'Profit Per Pax')}</div></div>
     <div class="res-item" style="color:#2ecc71"><span>PROFIT BERSIH</span><div style="display:flex;align-items:center;gap:6px;"><b>${f(bersih)}</b>${cp(f(bersih),'Profit Bersih')}</div></div>
     ${buffer > 0 ? `<div class="res-item" style="color:#f59e0b;"><span>+ Buffer Diskon</span><div style="display:flex;align-items:center;gap:6px;"><span>${f(buffer)}</span>${cp(f(buffer),'Buffer Diskon')}</div></div>` : ''}
-    <div class="res-item" style="border-top:2px solid var(--accent);margin-top:10px;padding-top:10px;flex-direction:column;align-items:center;">
-        <span style="font-weight:bold">HARGA BROSUR</span>
-        <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
-            <span class="highlight">${f(jual)}</span>
-            ${cp(f(jual),'Harga Brosur')}
-        </div>
-        <p style="font-size:10px;margin-top:5px;">*Berdasarkan ${nJam-nFoc} jamaah bayar dan ${nFoc} gratis</p>
-    </div>
+    ${hargaBrosurRows}
     <div class="action-buttons" style="display:flex;gap:10px;margin-top:15px;">
         <button class="btn" onclick="salinRingkasan()" style="background:#34495e;margin-top:0;flex:1;">SALIN</button>
         <button class="btn" onclick="cetakEstimasiPDFJamaah()" style="background:#2980b9;margin-top:0;flex:1;font-size:11px;">🖨️ CETAK JAMAAH</button>
@@ -4025,7 +4106,7 @@ async function cetakEstimasiPDFInternal() {
     const nJam = lastCalculatedTotalJam;
     const nFoc = parseInt(est.jamGratis)||0;
     const nTL = parseInt(est.numTL)||0;
-    const sub = pr(est.cTiket)+pr(est.cLA)+pr(est.cAsuransi)+pr(est.cHandling)+pr(est.cPIC)+pr(est.cAlat)+pr(est.cAplikasi)+pr(est.cLain);
+    const sub = pr(est.cTiket)+pr(est.cLAquad||est.cLA||'0')+pr(est.cAsuransi)+pr(est.cHandling)+pr(est.cPIC)+pr(est.cAlat)+pr(est.cAplikasi)+pr(est.cLain);
     const pPct = (parseFloat(est.profitPct)||0)/100;
     const profitKotor = (sub*nJam)*pPct;
     const biayaTL = sub*nTL;
@@ -4034,7 +4115,13 @@ async function cetakEstimasiPDFInternal() {
     const buffer = pr(est.cBuffer||'0');
     const jualBase = ((sub*nJam)+profitKotor)/(nJam-nFoc);
     const jual = jualBase + buffer;
-    const items = [['Tiket',pr(est.cTiket)],['Land Arrangement (LA)',pr(est.cLA)],['Asuransi',pr(est.cAsuransi)],['Handling',pr(est.cHandling)],['PIC/Guide',pr(est.cPIC)],['Perlengkapan',pr(est.cAlat)],['Biaya Aplikasi',pr(est.cAplikasi)],['Lain-lain',pr(est.cLain)]];
+    const laItems = [
+        ['LA/Hotel Quad', pr(est.cLAquad||est.cLA||'0')],
+        ['LA/Hotel Triple', pr(est.cLAtriple||'0')],
+        ['LA/Hotel Double', pr(est.cLAdouble||'0')],
+        ['LA/Hotel Single', pr(est.cLAsingle||'0')],
+    ].filter(([,v]) => v > 0);
+    const items = [['Tiket',pr(est.cTiket)],...laItems,['Asuransi',pr(est.cAsuransi)],['Handling',pr(est.cHandling)],['PIC/Guide',pr(est.cPIC)],['Perlengkapan',pr(est.cAlat)],['Biaya Aplikasi',pr(est.cAplikasi)],['Lain-lain',pr(est.cLain)]];
     if(buffer > 0) items.push(['Buffer Diskon', buffer]);
     let komponenHtml = '';
     items.forEach(([label, val]) => {
@@ -4101,6 +4188,29 @@ async function cetakEstimasiPDFInternal() {
     win.document.write(html); injectWatermarkToPrintWin(win); win.document.close();
 }
 
+function toggleLAAccordion() {
+    const body = document.getElementById('laAccordionBody');
+    const icon = document.getElementById('laAccordionIcon');
+    if(!body) return;
+    const isOpen = body.style.display !== 'none';
+    body.style.display = isOpen ? 'none' : 'block';
+    if(icon) icon.textContent = isOpen ? '▼' : '▲';
+}
+
+function updateLAPreview() {
+    const pr = v => parseInt((v||'0').toString().replace(/\./g,'').replace(/[^0-9]/g,''))||0;
+    const preview = document.getElementById('laPreview');
+    if(!preview) return;
+    const types = [
+        {n:'Quad',   v: pr(document.getElementById('cLAquad')?.value)},
+        {n:'Triple', v: pr(document.getElementById('cLAtriple')?.value)},
+        {n:'Double', v: pr(document.getElementById('cLAdouble')?.value)},
+        {n:'Single', v: pr(document.getElementById('cLAsingle')?.value)},
+    ].filter(t => t.v > 0);
+    if(types.length === 0) { preview.textContent = ''; return; }
+    preview.textContent = '✅ Aktif: ' + types.map(t => t.n).join(', ');
+}
+
 function resetEstimasiToDefault() { 
     if(confirm('Reset semua data estimasi ke nilai default?')) { 
         document.getElementById('lokasiPaket').value="Program 9 HARI"; 
@@ -4108,7 +4218,11 @@ function resetEstimasiToDefault() {
         document.getElementById('jamGratis').value="1"; 
         document.getElementById('numTL').value="1"; 
         document.getElementById('cTiket').value="15.450.000"; 
-        document.getElementById('cLA').value="14.450.000"; 
+        document.getElementById('cLAquad').value = "14.450.000";
+        document.getElementById('cLAtriple').value = "0";
+        document.getElementById('cLAdouble').value = "0";
+        document.getElementById('cLAsingle').value = "0";
+        updateLAPreview();
         document.getElementById('cAsuransi').value="60.000"; 
         document.getElementById('cHandling').value="100.000"; 
         document.getElementById('cAlat').value="1.000.000"; 
