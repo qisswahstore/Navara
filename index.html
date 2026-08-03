@@ -2042,17 +2042,38 @@
                 <span id="laAccordionIcon" style="color:#0D5C4A;font-size:14px;">▼</span>
             </div>
             <div id="laAccordionBody" style="border:1.5px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:12px;background:white;">
+                <!-- Toggle Mode -->
+                <div style="display:flex;gap:8px;margin-bottom:12px;background:#f8fafc;border-radius:10px;padding:8px;">
+                    <label style="flex:1;display:flex;align-items:center;gap:6px;cursor:pointer;justify-content:center;
+                        padding:7px;border-radius:8px;font-size:12px;font-weight:600;transition:all 0.2s;"
+                        id="labelModeHargaPenuh"
+                        style="background:#0D5C4A;color:white;">
+                        <input type="radio" name="modeLA" id="modeHargaPenuh" value="penuh" checked onchange="updateModeLA()"
+                            style="display:none;">
+                        ● Harga Penuh
+                    </label>
+                    <label style="flex:1;display:flex;align-items:center;gap:6px;cursor:pointer;justify-content:center;
+                        padding:7px;border-radius:8px;font-size:12px;font-weight:600;transition:all 0.2s;"
+                        id="labelModeUpgrade">
+                        <input type="radio" name="modeLA" id="modeUpgrade" value="upgrade" onchange="updateModeLA()"
+                            style="display:none;">
+                        ○ Upgrade dari Quad
+                    </label>
+                </div>
+
                 <div class="input-group" style="margin-bottom:8px;">
                     <label style="font-size:12px;color:#555;">Quad (4 orang/kamar)</label>
                     <input type="text" id="cLAquad" class="money-input" value="14.450.000" oninput="updateLAPreview()">
                 </div>
                 <div class="input-group" style="margin-bottom:8px;">
-                    <label style="font-size:12px;color:#555;">Triple (3 orang/kamar)</label>
+                    <label id="labelTriple" style="font-size:12px;color:#555;">Triple (3 orang/kamar)</label>
                     <input type="text" id="cLAtriple" class="money-input" value="0" oninput="updateLAPreview()">
+                    <small id="hintTriple" style="display:none;font-size:11px;color:#888;margin-top:3px;">↑ selisih dari Quad</small>
                 </div>
                 <div class="input-group" style="margin-bottom:0;">
-                    <label style="font-size:12px;color:#555;">Double (2 orang/kamar)</label>
+                    <label id="labelDouble" style="font-size:12px;color:#555;">Double (2 orang/kamar)</label>
                     <input type="text" id="cLAdouble" class="money-input" value="0" oninput="updateLAPreview()">
+                    <small id="hintDouble" style="display:none;font-size:11px;color:#888;margin-top:3px;">↑ selisih dari Quad</small>
                 </div>
                 <div id="laPreview" style="font-size:11px;color:#888;margin-top:8px;text-align:center;"></div>
             </div>
@@ -4032,6 +4053,7 @@ function saveEstimasiData() {
         cLAquad: document.getElementById('cLAquad')?.value || '0',
         cLAtriple: document.getElementById('cLAtriple')?.value || '0',
         cLAdouble: document.getElementById('cLAdouble')?.value || '0',
+        modeLA: getModeLA(),
         cAsuransi:document.getElementById('cAsuransi').value, 
         cHandling:document.getElementById('cHandling').value, 
         cAlat:document.getElementById('cAlat').value, 
@@ -4054,9 +4076,13 @@ function loadEstimasiData() {
         if(data.numTL) document.getElementById('numTL').value=data.numTL; 
         if(data.cTiket) document.getElementById('cTiket').value=data.cTiket; 
         if(data.cLAquad !== undefined) document.getElementById('cLAquad').value = data.cLAquad;
-        else if(data.cLA) document.getElementById('cLAquad').value = data.cLA; // migrasi data lama
+        else if(data.cLA) document.getElementById('cLAquad').value = data.cLA;
         if(data.cLAtriple !== undefined) document.getElementById('cLAtriple').value = data.cLAtriple;
         if(data.cLAdouble !== undefined) document.getElementById('cLAdouble').value = data.cLAdouble;
+        if(data.modeLA === 'upgrade') {
+            const el = document.getElementById('modeUpgrade');
+            if(el) { el.checked = true; updateModeLA(); }
+        }
         updateLAPreview();
         if(data.cAsuransi) document.getElementById('cAsuransi').value=data.cAsuransi; 
         if(data.cHandling) document.getElementById('cHandling').value=data.cHandling; 
@@ -4077,9 +4103,10 @@ function hitungUmroh() {
     const ids=['cTiket','cAsuransi','cHandling','cPIC','cAlat','cAplikasi','cLain'];
     const subBase=ids.map(id=>parseRupiah(document.getElementById(id).value)).reduce((a,b)=>a+b,0);
     // LA per tipe kamar
-    const laQuad  = parseRupiah(document.getElementById('cLAquad')?.value||'0');
-    const laTriple= parseRupiah(document.getElementById('cLAtriple')?.value||'0');
-    const laDouble= parseRupiah(document.getElementById('cLAdouble')?.value||'0');
+    const laQuad   = parseRupiah(document.getElementById('cLAquad')?.value||'0');
+    const laTriple = parseRupiah(document.getElementById('cLAtriple')?.value||'0');
+    const laDouble = parseRupiah(document.getElementById('cLAdouble')?.value||'0');
+    const modeLA   = getModeLA();
     // Gunakan Quad sebagai default untuk kalkulasi utama
     const sub = subBase + laQuad; 
     const nFoc=parseInt(document.getElementById('jamGratis').value)||0; 
@@ -4104,10 +4131,18 @@ function hitungUmroh() {
     ].filter(t => t.aktif);
 
     const hargaPerTipe = laTypes.map(t => {
-        const subT = subBase + t.la;
-        const profitKotorT = (subT * nJam) * pPct;
-        const jualBaseT = ((subT * nJam) + profitKotorT) / (nJam - nFoc);
-        return { nama: t.nama, jual: jualBaseT + buffer };
+        let jualTipe;
+        if(modeLA === 'upgrade' && t.nama !== 'Quad') {
+            // Mode upgrade: Harga Quad + selisih (tidak kena markup)
+            jualTipe = jual + t.la;
+        } else {
+            // Mode harga penuh: hitung normal per tipe
+            const subT = subBase + t.la;
+            const profitKotorT = (subT * nJam) * pPct;
+            const jualBaseT = ((subT * nJam) + profitKotorT) / (nJam - nFoc);
+            jualTipe = jualBaseT + buffer;
+        }
+        return { nama: t.nama, jual: jualTipe };
     });
 
     // Untuk lastCalculatedPrice gunakan tipe pertama
@@ -4788,6 +4823,38 @@ function shareRekapAktual() {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,'_blank');
 }
 
+function updateModeLA() {
+    const isUpgrade = document.getElementById('modeUpgrade')?.checked;
+    const labelPenuh = document.getElementById('labelModeHargaPenuh');
+    const labelUpgrade = document.getElementById('labelModeUpgrade');
+    const hintTriple = document.getElementById('hintTriple');
+    const hintDouble = document.getElementById('hintDouble');
+    const labelTriple = document.getElementById('labelTriple');
+    const labelDouble = document.getElementById('labelDouble');
+
+    if(labelPenuh) {
+        labelPenuh.style.background = isUpgrade ? 'transparent' : '#0D5C4A';
+        labelPenuh.style.color = isUpgrade ? '#666' : 'white';
+    }
+    if(labelUpgrade) {
+        labelUpgrade.style.background = isUpgrade ? '#0D5C4A' : 'transparent';
+        labelUpgrade.style.color = isUpgrade ? 'white' : '#666';
+    }
+    if(hintTriple) hintTriple.style.display = isUpgrade ? 'block' : 'none';
+    if(hintDouble) hintDouble.style.display = isUpgrade ? 'block' : 'none';
+    if(labelTriple) labelTriple.textContent = isUpgrade
+        ? 'Triple — selisih dari Quad (Rp)'
+        : 'Triple (3 orang/kamar)';
+    if(labelDouble) labelDouble.textContent = isUpgrade
+        ? 'Double — selisih dari Quad (Rp)'
+        : 'Double (2 orang/kamar)';
+    updateLAPreview();
+}
+
+function getModeLA() {
+    return document.getElementById('modeUpgrade')?.checked ? 'upgrade' : 'penuh';
+}
+
 function toggleLAAccordion() {
     const body = document.getElementById('laAccordionBody');
     const icon = document.getElementById('laAccordionIcon');
@@ -4829,6 +4896,8 @@ function resetEstimasiToDefault() {
         document.getElementById('cLain').value="0"; 
         document.getElementById('profitPct').value="5";
         document.getElementById('cBuffer').value="0";
+        const modeHargaPenuh = document.getElementById('modeHargaPenuh');
+        if(modeHargaPenuh) { modeHargaPenuh.checked = true; updateModeLA(); }
         saveEstimasiData(); 
         showToast('Data estimasi direset ke default'); 
         hitungUmroh(); 
