@@ -2175,10 +2175,16 @@
         <div style="background:white;border-radius:16px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                 <div style="font-weight:700;font-size:14px;color:#0D5C4A;">📋 Daftar Pengeluaran</div>
-                <button onclick="cetakPengeluaran()"
-                    style="padding:6px 12px;background:#0D5C4A;color:white;border:none;border-radius:8px;font-size:12px;cursor:pointer;">
-                    🖨️ Cetak
-                </button>
+                <div style="display:flex;gap:6px;">
+                    <button onclick="cetakPengeluaran()"
+                        style="padding:6px 10px;background:#0D5C4A;color:white;border:none;border-radius:8px;font-size:11px;cursor:pointer;">
+                        🖨️ Cetak
+                    </button>
+                    <button onclick="cetakLaporanGabungan('semua')"
+                        style="padding:6px 10px;background:#1d4ed8;color:white;border:none;border-radius:8px;font-size:11px;cursor:pointer;">
+                        📄 Lengkap
+                    </button>
+                </div>
             </div>
             <div id="pengeluaranList">
                 <div style="text-align:center;color:#888;padding:20px;font-size:13px;">Belum ada pengeluaran</div>
@@ -4430,18 +4436,25 @@ function switchCuanTab(tab) {
 // ==================== PENGELUARAN ====================
 let pengeluaranList = [];
 
-function loadPengeluaran() {
+async function loadPengeluaran() {
     try {
-        const saved = localStorage.getItem('navara_pengeluaran');
-        pengeluaranList = saved ? JSON.parse(saved) : [];
+        const saved = await idbGet('appData', 'pengeluaran_data');
+        if(saved) { pengeluaranList = saved; return; }
+        // Migrasi dari localStorage kalau ada
+        const old = localStorage.getItem('navara_pengeluaran');
+        if(old) {
+            pengeluaranList = JSON.parse(old);
+            await savePengeluaran();
+            localStorage.removeItem('navara_pengeluaran');
+        } else { pengeluaranList = []; }
     } catch(e) { pengeluaranList = []; }
 }
 
-function savePengeluaran() {
-    localStorage.setItem('navara_pengeluaran', JSON.stringify(pengeluaranList));
+async function savePengeluaran() {
+    try { await idbSet('appData', 'pengeluaran_data', pengeluaranList); } catch(e) {}
 }
 
-function simpanPengeluaran() {
+async function simpanPengeluaran() {
     const kategori = document.getElementById('pengeluaranKategori').value;
     const keterangan = document.getElementById('pengeluaranKeterangan').value.trim();
     const nominalRaw = document.getElementById('pengeluaranNominal').value;
@@ -4457,21 +4470,20 @@ function simpanPengeluaran() {
         kategori, keterangan, nominal,
         tanggal: tanggal || new Date().toISOString().split('T')[0]
     });
-    savePengeluaran();
+    await savePengeluaran();
     renderPengeluaranList();
     updateRingkasanKeuangan();
 
-    // Reset form
     document.getElementById('pengeluaranKategori').value = '';
     document.getElementById('pengeluaranKeterangan').value = '';
     document.getElementById('pengeluaranNominal').value = '';
     showToast('✅ Pengeluaran disimpan!');
 }
 
-function hapusPengeluaran(id) {
+async function hapusPengeluaran(id) {
     if(!confirm('Hapus pengeluaran ini?')) return;
     pengeluaranList = pengeluaranList.filter(p => p.id !== id);
-    savePengeluaran();
+    await savePengeluaran();
     renderPengeluaranList();
     updateRingkasanKeuangan();
     showToast('🗑️ Pengeluaran dihapus');
@@ -4569,31 +4581,75 @@ function updateRingkasanKeuangan() {
 }
 
 function cetakPengeluaran() {
-    if(pengeluaranList.length === 0) return showToast('Belum ada pengeluaran!');
+    cetakLaporanGabungan('pengeluaran');
+}
+
+function cetakLaporanGabungan(mode = 'semua') {
     const cfg = getKonfigurasiProData();
     const namaKBIH = cfg.instansi1?.nama || 'Navara';
     const tgl = new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
-    const content = document.getElementById('pengeluaranList').innerHTML;
-    const ringkasan = document.getElementById('pengeluaranRingkasan').innerHTML;
+
+    // Clone & bersihkan tombol dari rekap
+    const rekapEl = document.getElementById('rekapAktualContent');
+    const rekapAda = rekapEl && rekapEl.innerText.trim().length > 10;
+    let rekapHTML = '';
+    if(rekapAda) {
+        const clone = rekapEl.cloneNode(true);
+        clone.querySelectorAll('button').forEach(b => b.remove());
+        rekapHTML = clone.innerHTML;
+    }
+
+    // Clone & bersihkan tombol dari pengeluaran
+    const pengeluaranEl = document.getElementById('pengeluaranList');
+    const ringkasanEl = document.getElementById('pengeluaranRingkasan');
+    const pengeluaranAda = pengeluaranList.length > 0;
+    let pengeluaranHTML = '', ringkasanHTML = '';
+    if(pengeluaranAda) {
+        const cloneP = pengeluaranEl?.cloneNode(true);
+        if(cloneP) { cloneP.querySelectorAll('button').forEach(b => b.remove()); pengeluaranHTML = cloneP.innerHTML; }
+        const cloneR = ringkasanEl?.cloneNode(true);
+        if(cloneR) { cloneR.querySelectorAll('button').forEach(b => b.remove()); ringkasanHTML = cloneR.innerHTML; }
+    }
+
+    if(mode === 'pengeluaran' && !pengeluaranAda) return showToast('Belum ada pengeluaran!');
+    if(mode === 'rekap' && !rekapAda) return showToast('Hitung rekap dulu!');
+    if(mode === 'semua' && !rekapAda && !pengeluaranAda) return showToast('Tidak ada data untuk dicetak!');
+
     const win = window.open('','_blank');
     if(!win) return showToast('Izinkan popup untuk cetak');
+
+    const showRekap = (mode === 'semua' || mode === 'rekap') && rekapAda;
+    const showPengeluaran = (mode === 'semua' || mode === 'pengeluaran') && pengeluaranAda;
+
     win.document.write(`<!DOCTYPE html><html><head>
-        <meta charset="UTF-8"><title>Laporan Pengeluaran</title>
+        <meta charset="UTF-8">
+        <title>Laporan Keuangan${mode === 'semua' ? ' Lengkap' : ''}</title>
         <style>
             *{margin:0;padding:0;box-sizing:border-box;}
-            body{font-family:Arial,sans-serif;font-size:13px;padding:24px;}
+            body{font-family:Arial,sans-serif;font-size:13px;padding:24px;color:#1a1a1a;}
             .topbar{text-align:right;margin-bottom:16px;}
-            .topbar button{padding:8px 16px;background:#0D5C4A;color:white;border:none;border-radius:8px;cursor:pointer;}
-            h2{color:#0D5C4A;text-align:center;margin-bottom:4px;}
-            .sub{text-align:center;color:#666;font-size:12px;margin-bottom:20px;}
+            .topbar button{padding:8px 16px;background:#0D5C4A;color:white;border:none;border-radius:8px;cursor:pointer;margin-left:8px;}
+            .header{text-align:center;border-bottom:2px solid #0D5C4A;padding-bottom:12px;margin-bottom:20px;}
+            .header h1{color:#0D5C4A;font-size:16px;}
+            .header p{color:#666;font-size:12px;margin-top:4px;}
+            .section-title{font-weight:bold;font-size:14px;color:#0D5C4A;
+                border-bottom:1.5px solid #0D5C4A;padding-bottom:6px;margin:16px 0 12px;}
+            .divider{border:none;border-top:1px dashed #ccc;margin:20px 0;}
             @media print{.topbar{display:none;}}
         </style>
     </head><body>
-        <div class="topbar"><button onclick="window.print()">🖨️ Cetak</button></div>
-        <h2>LAPORAN PENGELUARAN</h2>
-        <div class="sub">${namaKBIH} · ${tgl}</div>
-        ${content}
-        <div style="margin-top:16px;">${ringkasan}</div>
+        <div class="topbar">
+            <button onclick="window.print()">🖨️ Cetak</button>
+            <button onclick="window.close()">✕ Tutup</button>
+        </div>
+        <div class="header">
+            <h1>LAPORAN KEUANGAN${mode === 'semua' ? ' LENGKAP' : mode === 'rekap' ? ' — REKAP PROFIT' : ' — PENGELUARAN'}</h1>
+            <p>${namaKBIH}</p>
+            <p>Dicetak: ${tgl}</p>
+        </div>
+        ${showRekap ? `<div class="section-title">📋 Rekap Profit Aktual</div>${rekapHTML}` : ''}
+        ${showRekap && showPengeluaran ? '<hr class="divider">' : ''}
+        ${showPengeluaran ? `<div class="section-title">💸 Rincian Pengeluaran</div>${pengeluaranHTML}<div style="margin-top:12px;">${ringkasanHTML}</div>` : ''}
     </body></html>`);
     win.document.close();
 }
@@ -4748,16 +4804,21 @@ function hitungRekapAktual() {
         </div>`;
     }
 
-    // Tombol Cetak & Share di paling bawah hasil
-    html += `<div style="display:flex;gap:10px;margin-top:4px;margin-bottom:16px;">
+    // Tombol di paling bawah hasil
+    html += `<div style="display:flex;gap:8px;margin-top:4px;margin-bottom:16px;flex-wrap:wrap;">
         <button onclick="cetakRekapAktual()"
-            style="flex:1;padding:13px;background:#0D5C4A;color:white;border:none;
-            border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;">
-            🖨️ Cetak Laporan
+            style="flex:1;padding:11px;background:#0D5C4A;color:white;border:none;
+            border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;min-width:100px;">
+            🖨️ Cetak Rekap
+        </button>
+        <button onclick="cetakLaporanGabungan('semua')"
+            style="flex:1;padding:11px;background:#1d4ed8;color:white;border:none;
+            border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;min-width:100px;">
+            📄 Cetak Lengkap
         </button>
         <button onclick="shareRekapAktual()"
-            style="flex:1;padding:13px;background:#25d366;color:white;border:none;
-            border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;">
+            style="flex:1;padding:11px;background:#25d366;color:white;border:none;
+            border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;min-width:100px;">
             📲 Share WA
         </button>
     </div>`;
@@ -4773,31 +4834,7 @@ function getEstimasiData() {
 }
 
 function cetakRekapAktual() {
-    const content = document.getElementById('rekapAktualContent');
-    if(!content || !content.innerHTML.trim()) return showToast('Hitung rekap dulu!');
-    const cfg = getKonfigurasiProData();
-    const namaKBIH = cfg.instansi1?.nama || 'Navara';
-    const tgl = new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
-    const win = window.open('','_blank');
-    if(!win) return showToast('Izinkan popup untuk cetak');
-    win.document.write(`<!DOCTYPE html><html><head>
-        <meta charset="UTF-8"><title>Rekap Profit Aktual</title>
-        <style>
-            *{margin:0;padding:0;box-sizing:border-box;}
-            body{font-family:Arial,sans-serif;font-size:13px;padding:24px;}
-            .topbar{text-align:right;margin-bottom:16px;}
-            .topbar button{padding:8px 16px;background:#0D5C4A;color:white;border:none;border-radius:8px;cursor:pointer;}
-            h2{color:#0D5C4A;text-align:center;font-size:16px;margin-bottom:4px;}
-            .sub{text-align:center;color:#666;font-size:12px;margin-bottom:16px;}
-            @media print{.topbar{display:none;}}
-        </style>
-    </head><body>
-        <div class="topbar"><button onclick="window.print()">🖨️ Cetak</button></div>
-        <h2>REKAP PROFIT AKTUAL</h2>
-        <div class="sub">${namaKBIH} · ${tgl}</div>
-        ${content.innerHTML}
-    </body></html>`);
-    win.document.close();
+    cetakLaporanGabungan('rekap');
 }
 
 function shareRekapAktual() {
@@ -13390,7 +13427,7 @@ async function initPremium() {
     updateStorageInfo();
     initHistoryState();
     initTipePaket();
-    loadPengeluaran();
+    await loadPengeluaran();
 
     // Auto masuk app tanpa pilihan — Google Drive bisa dihubungkan di Setting > Backup
     setTimeout(() => {
