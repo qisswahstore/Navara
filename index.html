@@ -4438,9 +4438,9 @@ let pengeluaranList = [];
 
 async function loadPengeluaran() {
     try {
-        const saved = await idbGet('appData', 'pengeluaran_data');
+        const saved = await idbGet(STORE_PENGELUARAN, 'pengeluaran_data');
         if(saved) { pengeluaranList = saved; return; }
-        // Migrasi dari localStorage kalau ada
+        // Migrasi dari localStorage kalau ada (versi lama sebelum pakai IndexedDB)
         const old = localStorage.getItem('navara_pengeluaran');
         if(old) {
             pengeluaranList = JSON.parse(old);
@@ -4451,7 +4451,7 @@ async function loadPengeluaran() {
 }
 
 async function savePengeluaran() {
-    try { await idbSet('appData', 'pengeluaran_data', pengeluaranList); } catch(e) {}
+    try { await idbSet(STORE_PENGELUARAN, 'pengeluaran_data', pengeluaranList); } catch(e) {}
 }
 
 async function simpanPengeluaran() {
@@ -4684,7 +4684,7 @@ function hitungRekapAktual() {
         }
 
         // Sudah dibayar = SUM cicilan dari pembayaranData (yang benar-benar masuk)
-        const payData = typeof pembayaranData !== 'undefined' ? pembayaranData : [];
+        const payData = typeof paymentTransaksiList !== 'undefined' ? paymentTransaksiList : [];
         const sudahDibayar = payData
             .filter(t => t.id_jamaah == j.id)
             .reduce((s, t) => s + (parseInt(t.nominal)||0), 0);
@@ -4707,12 +4707,18 @@ function hitungRekapAktual() {
         if(est) {
             const pr = v => parseInt((v||'0').toString().replace(/\./g,'').replace(/[^0-9]/g,''))||0;
             const subBase = pr(est.cTiket)+pr(est.cAsuransi)+pr(est.cHandling)+pr(est.cPIC)+pr(est.cAlat)+pr(est.cAplikasi)+pr(est.cLain);
-            const laMap = {
-                'Quad': pr(est.cLAquad||est.cLA||'0'),
-                'Triple': pr(est.cLAtriple||'0'),
-                'Double': pr(est.cLAdouble||'0'),
-            };
-            const laVal = laMap[tipe] || pr(est.cLAquad||est.cLA||'0');
+            const laQuadVal = pr(est.cLAquad||est.cLA||'0');
+            let laVal;
+            if(est.modeLA === 'upgrade' && tipe !== 'Quad') {
+                // Mode Upgrade: nilai Triple/Double adalah SELISIH dari Quad, bukan harga penuh
+                const selisihMap = { 'Triple': pr(est.cLAtriple||'0'), 'Double': pr(est.cLAdouble||'0') };
+                const selisih = selisihMap[tipe];
+                laVal = selisih !== undefined ? laQuadVal + selisih : laQuadVal;
+            } else {
+                const laMap = { 'Quad': laQuadVal, 'Triple': pr(est.cLAtriple||'0'), 'Double': pr(est.cLAdouble||'0') };
+                laVal = laMap[tipe] !== undefined ? laMap[tipe] : laQuadVal;
+                if(laVal === 0 && tipe !== 'Quad') laVal = laQuadVal;
+            }
             modalPerJamaah = subBase + laVal;
         }
 
@@ -4729,11 +4735,11 @@ function hitungRekapAktual() {
         tipeData[tipe].totalModal    += modalPerJamaah;
 
         // Cek harga di bawah modal
-        if(modalPerJamaah > 0 && sudahDibayar > 0 && sudahDibayar < modalPerJamaah) {
+        if(modalPerJamaah > 0 && hargaPaket > 0 && hargaPaket < modalPerJamaah) {
             hargaBawahStandar.push({
                 nama: j.nama_lengkap, tipe,
-                harga: sudahDibayar, modal: modalPerJamaah,
-                selisih: modalPerJamaah - sudahDibayar
+                harga: hargaPaket, modal: modalPerJamaah,
+                selisih: modalPerJamaah - hargaPaket
             });
         }
     });
@@ -10188,7 +10194,7 @@ function exportFolderToExcel(folderId) {
 // ==================== UPLOAD DOKUMEN ====================
 let dokumenJenisList = [], dokumenData = {}, db = null;
 // ==================== INDEXEDDB TERPUSAT ====================
-const DB_NAME = 'NavaraDB', DB_VERSION = 3, 
+const DB_NAME = 'NavaraDB', DB_VERSION = 4, 
     STORE_NAME = 'dokumen', 
     JENIS_STORE_NAME = 'dokumenJenis',
     STORE_JAMAAH = 'jamaahData',
@@ -10199,7 +10205,8 @@ const DB_NAME = 'NavaraDB', DB_VERSION = 3,
     STORE_KONFIGURASI = 'konfigurasiData',
     STORE_MASTER = 'masterData',
     STORE_FOTO = 'fotoProfil',
-    STORE_ABSENSI = 'absensiData';
+    STORE_ABSENSI = 'absensiData',
+    STORE_PENGELUARAN = 'pengeluaranData';
 
 function openIndexedDB() { 
     return new Promise((resolve, reject) => { 
@@ -10212,7 +10219,7 @@ function openIndexedDB() {
             const d = event.target.result; 
             [STORE_NAME, JENIS_STORE_NAME, STORE_JAMAAH, STORE_JAMAAH_KITA, 
              STORE_FOLDER, STORE_KAS, STORE_PEMBAYARAN, STORE_KONFIGURASI, 
-             STORE_MASTER, STORE_FOTO, STORE_ABSENSI].forEach(name => {
+             STORE_MASTER, STORE_FOTO, STORE_ABSENSI, STORE_PENGELUARAN].forEach(name => {
                 if (!d.objectStoreNames.contains(name)) d.createObjectStore(name, { keyPath: 'id' });
             });
         }; 
@@ -11211,7 +11218,8 @@ async function bagikanFullZip() {
             multi_event: masterDataList,
             dokumen_jenis: dokumenJenisList,
             konfigurasi: konfigurasiPro,
-            catatan: JSON.parse(localStorage.getItem('navara_catatan_list') || '[]')
+            catatan: JSON.parse(localStorage.getItem('navara_catatan_list') || '[]'),
+            pengeluaran: pengeluaranList
         };
         const json = JSON.stringify(backupData);
         const date = new Date().toISOString().slice(0, 10);
@@ -11256,7 +11264,8 @@ async function bagikanFullZip() {
                 folder: folderList, kas: dataKas, pembayaran: paymentTransaksiList,
                 multi_event: masterDataList, dokumen_jenis: dokumenJenisList,
                 konfigurasi: konfigurasiPro,
-                catatan: JSON.parse(localStorage.getItem('navara_catatan_list') || '[]')
+                catatan: JSON.parse(localStorage.getItem('navara_catatan_list') || '[]'),
+                pengeluaran: pengeluaranList
             };
             const json = JSON.stringify(backupData);
             const date = new Date().toISOString().slice(0, 10);
@@ -11319,6 +11328,7 @@ async function downloadFullZip() {
         zip.file('folder.json', JSON.stringify(folderList, null, 2));
         zip.file('dokumen_jenis.json', JSON.stringify(dokumenJenisList, null, 2));
         zip.file('konfigurasi.json', JSON.stringify(konfigurasiPro, null, 2));
+        zip.file('pengeluaran.json', JSON.stringify(pengeluaranList, null, 2));
         // Dokumen
         const dokumenFolder = zip.folder('dokumen'); 
         for (const j of jamaahList) { 
@@ -11405,6 +11415,7 @@ async function applyRestoreBackupData(backup) {
     if (backup.dokumen_jenis) { dokumenJenisList = backup.dokumen_jenis; await saveDokumenJenisToIndexedDB(); }
     if (backup.konfigurasi) { konfigurasiPro = { ...konfigurasiPro, ...backup.konfigurasi }; await idbSet(STORE_KONFIGURASI, 'konfigurasi_pro', konfigurasiPro); }
     if (backup.catatan) localStorage.setItem('navara_catatan_list', JSON.stringify(backup.catatan));
+    if (backup.pengeluaran) { pengeluaranList = backup.pengeluaran; await savePengeluaran(); }
 }
 
 function restoreFromJson(input) {
@@ -11493,6 +11504,10 @@ function restoreFromZip(input) {
                 konfigurasiPro = { ...konfigurasiPro, ...cfg };
                 await idbSet(STORE_KONFIGURASI, 'konfigurasi_pro', konfigurasiPro);
             }
+
+            // Restore pengeluaran
+            const pengeluaranFile = zip.file('pengeluaran.json');
+            if (pengeluaranFile) { pengeluaranList = JSON.parse(await pengeluaranFile.async('string')); await savePengeluaran(); }
 
             // Restore dokumen per jamaah ke IndexedDB
             dokumenData = {}; 
