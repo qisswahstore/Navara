@@ -4550,18 +4550,13 @@ function updateRingkasanKeuangan() {
     const ringkasan = document.getElementById('pengeluaranRingkasan');
     if(!ringkasan) return;
 
-    // Total pemasukan dari jamaah
+    // Total pemasukan = sudah dibayar dari pembayaranData
     let totalPemasukan = 0;
-    const possibleNames = ['total_harga_paket','total_harga','harga_paket','tagihan'];
+    const payData = typeof pembayaranData !== 'undefined' ? pembayaranData : [];
     jamaahList.forEach(j => {
-        if(!j.additional_fields) return;
-        for(const key in j.additional_fields) {
-            const kl = key.toLowerCase();
-            if(possibleNames.some(n => kl.includes(n.split('_')[0])) || kl.includes('harga') || kl.includes('paket')) {
-                const val = parseInt((j.additional_fields[key]||'0').toString().replace(/\./g,'').replace(/[^0-9]/g,''));
-                if(!isNaN(val) && val > 0) { totalPemasukan += val; break; }
-            }
-        }
+        totalPemasukan += payData
+            .filter(t => t.id_jamaah == j.id)
+            .reduce((s, t) => s + (parseInt(t.nominal)||0), 0);
     });
 
     // Total pengeluaran
@@ -4673,8 +4668,9 @@ function hitungRekapAktual() {
 
     jamaahList.forEach(j => {
         const tipe = j.additional_fields?.tipe_paket || '';
-        // Ambil harga aktual — pakai logika SAMA dengan sistem pembayaran
-        let hargaAktual = 0;
+
+        // Harga paket (kontrak/target)
+        let hargaPaket = 0;
         if(j.additional_fields) {
             const possibleNames = ['total_harga_paket','total_harga','harga_paket','paket','tagihan','nominal'];
             for(const key in j.additional_fields) {
@@ -4682,18 +4678,29 @@ function hitungRekapAktual() {
                 if(possibleNames.some(n => keyLow.includes(n.split('_')[0])) ||
                    keyLow.includes('harga') || keyLow.includes('paket') || keyLow.includes('tagihan')) {
                     const val = parseInt((j.additional_fields[key]||'0').toString().replace(/\./g,'').replace(/[^0-9]/g,''));
-                    if(!isNaN(val) && val > 0) { hargaAktual = val; break; }
+                    if(!isNaN(val) && val > 0) { hargaPaket = val; break; }
                 }
             }
         }
-        const belumIsiHarga = hargaAktual === 0;
+
+        // Sudah dibayar = SUM cicilan dari pembayaranData (yang benar-benar masuk)
+        const payData = typeof pembayaranData !== 'undefined' ? pembayaranData : [];
+        const sudahDibayar = payData
+            .filter(t => t.id_jamaah == j.id)
+            .reduce((s, t) => s + (parseInt(t.nominal)||0), 0);
+
+        const piutang = Math.max(0, hargaPaket - sudahDibayar);
+        const belumIsiHarga = hargaPaket === 0 && sudahDibayar === 0;
 
         if(!tipe) {
             tanpaTipe.push(j.nama_lengkap);
             return;
         }
 
-        if(!tipeData[tipe]) tipeData[tipe] = { jamaah: [], totalOmzet: 0, totalModal: 0, tanpaHarga: [] };
+        if(!tipeData[tipe]) tipeData[tipe] = {
+            jamaah: [], totalOmzet: 0, totalModal: 0,
+            totalKontrak: 0, totalPiutang: 0, tanpaHarga: []
+        };
 
         // Modal per jamaah berdasarkan tipe kamar dari estimasi
         let modalPerJamaah = 0;
@@ -4709,27 +4716,29 @@ function hitungRekapAktual() {
             modalPerJamaah = subBase + laVal;
         }
 
-        // Kalau belum isi harga → catat terpisah, tidak ikut kalkulasi
+        // Kalau belum ada data → catat terpisah
         if(belumIsiHarga) {
             tipeData[tipe].tanpaHarga.push(j.nama_lengkap);
             return;
         }
 
-        tipeData[tipe].jamaah.push({ nama: j.nama_lengkap, harga: hargaAktual });
-        tipeData[tipe].totalOmzet += hargaAktual;
-        tipeData[tipe].totalModal += modalPerJamaah;
+        tipeData[tipe].jamaah.push({ nama: j.nama_lengkap, kontrak: hargaPaket, dibayar: sudahDibayar, piutang });
+        tipeData[tipe].totalOmzet    += sudahDibayar;  // Pemasukan AKTUAL (sudah dibayar)
+        tipeData[tipe].totalKontrak  += hargaPaket;    // Total kontrak
+        tipeData[tipe].totalPiutang  += piutang;       // Sisa belum bayar
+        tipeData[tipe].totalModal    += modalPerJamaah;
 
         // Cek harga di bawah modal
-        if(modalPerJamaah > 0 && hargaAktual > 0 && hargaAktual < modalPerJamaah) {
+        if(modalPerJamaah > 0 && sudahDibayar > 0 && sudahDibayar < modalPerJamaah) {
             hargaBawahStandar.push({
                 nama: j.nama_lengkap, tipe,
-                harga: hargaAktual, modal: modalPerJamaah,
-                selisih: modalPerJamaah - hargaAktual
+                harga: sudahDibayar, modal: modalPerJamaah,
+                selisih: modalPerJamaah - sudahDibayar
             });
         }
     });
 
-    let grandOmzet = 0, grandModal = 0;
+    let grandOmzet = 0, grandModal = 0, grandKontrak = 0, grandPiutang = 0;
     let html = '';
 
     // Render per tipe
@@ -4738,26 +4747,36 @@ function hitungRekapAktual() {
         const profit = d.totalOmzet - d.totalModal;
         grandOmzet += d.totalOmzet;
         grandModal += d.totalModal;
+        grandKontrak += (d.totalKontrak || d.totalOmzet);
+        grandPiutang += (d.totalPiutang || 0);
         const totalJamaahTipe = d.jamaah.length + (d.tanpaHarga?.length || 0);
 
         html += `<div style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
             <div style="font-weight:700;font-size:14px;color:#0D5C4A;margin-bottom:8px;">🛏️ ${escapeHtml(tipe)} (${totalJamaahTipe} jamaah)</div>
             ${d.jamaah.length > 0 ? `
             <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;">
-                <span style="font-size:13px;color:#666;">Total Pemasukan (${d.jamaah.length} jamaah)</span>
-                <span style="font-size:13px;font-weight:600;">${f(d.totalOmzet)}</span>
+                <span style="font-size:13px;color:#666;">Total Kontrak</span>
+                <span style="font-size:13px;">${f(d.totalKontrak||d.totalOmzet)}</span>
             </div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;">
+                <span style="font-size:13px;color:#666;">Sudah Dibayar (${d.jamaah.length} jamaah)</span>
+                <span style="font-size:13px;font-weight:600;color:#10B981;">${f(d.totalOmzet)}</span>
+            </div>
+            ${d.totalPiutang > 0 ? `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;">
+                <span style="font-size:13px;color:#666;">Piutang/Sisa</span>
+                <span style="font-size:13px;font-weight:600;color:#f59e0b;">-${f(d.totalPiutang)}</span>
+            </div>` : ''}
             ${d.totalModal > 0 ? `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;">
                 <span style="font-size:13px;color:#666;">Total Modal</span>
                 <span style="font-size:13px;">${f(d.totalModal)}</span>
             </div>
             <div style="display:flex;justify-content:space-between;padding:5px 0;">
-                <span style="font-size:13px;font-weight:700;color:${profit>=0?'#10B981':'#ef4444'}">Profit</span>
+                <span style="font-size:13px;font-weight:700;color:${profit>=0?'#10B981':'#ef4444'}">Profit Aktual</span>
                 <span style="font-size:13px;font-weight:700;color:${profit>=0?'#10B981':'#ef4444'}">${f(profit)}</span>
             </div>` : ''}` : ''}
             ${d.tanpaHarga?.length > 0 ? `
             <div style="margin-top:6px;padding:8px;background:#fef3c7;border-radius:8px;font-size:12px;color:#92400e;">
-                ⚠️ ${d.tanpaHarga.length} jamaah belum isi harga — atur di menu Pembayaran → Harga
+                ⚠️ ${d.tanpaHarga.length} jamaah belum ada data pembayaran
             </div>` : ''}
         </div>`;
     });
@@ -4767,16 +4786,24 @@ function hitungRekapAktual() {
     html += `<div style="background:linear-gradient(135deg,#0D5C4A,#0a3d31);border-radius:14px;padding:16px;margin-bottom:10px;color:white;">
         <div style="font-weight:700;font-size:15px;margin-bottom:10px;">💰 TOTAL KESELURUHAN</div>
         <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.2);">
-            <span style="font-size:13px;opacity:0.8;">Total Pemasukan</span>
-            <span style="font-size:13px;font-weight:700;">${f(grandOmzet)}</span>
+            <span style="font-size:13px;opacity:0.8;">Total Kontrak/Omzet</span>
+            <span style="font-size:13px;">${f(grandKontrak)}</span>
         </div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.2);">
+            <span style="font-size:13px;opacity:0.8;">Sudah Dibayar</span>
+            <span style="font-size:13px;font-weight:700;color:#2ecc71;">${f(grandOmzet)}</span>
+        </div>
+        ${grandPiutang > 0 ? `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.2);">
+            <span style="font-size:13px;opacity:0.8;">Piutang/Sisa</span>
+            <span style="font-size:13px;font-weight:700;color:#f59e0b;">-${f(grandPiutang)}</span>
+        </div>` : ''}
         ${grandModal > 0 ? `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.2);">
-            <span style="font-size:13px;opacity:0.8;">Total Modal</span>
+            <span style="font-size:13px;opacity:0.8;">Total Modal (estimasi)</span>
             <span style="font-size:13px;">${f(grandModal)}</span>
         </div>` : ''}
         <div style="display:flex;justify-content:space-between;padding:8px 0 0;">
-            <span style="font-size:15px;font-weight:700;">PROFIT BERSIH</span>
-            <span style="font-size:18px;font-weight:900;color:#2ecc71;">${f(grandProfit)}</span>
+            <span style="font-size:15px;font-weight:700;">PROFIT AKTUAL</span>
+            <span style="font-size:18px;font-weight:900;color:${grandProfit>=0?'#2ecc71':'#ef4444'};">${f(grandProfit)}</span>
         </div>
         <div style="font-size:11px;opacity:0.6;margin-top:6px;text-align:right;">
             Total ${jamaahList.length} jamaah · ${Object.keys(tipeData).length} tipe
