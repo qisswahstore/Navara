@@ -3512,21 +3512,7 @@ function updateHomeStats() {
     
     jamaahData.forEach(j => {
         const totalBayar = paymentData.filter(t => t.id_jamaah == j.id).reduce((s,t) => s + t.nominal, 0);
-        let totalHargaPaket = null;
-        
-        // Cari field harga/paket di additional_fields
-        if (j.additional_fields) { 
-            for (const key in j.additional_fields) { 
-                if (key.toLowerCase().includes('harga') || key.toLowerCase().includes('paket') || key.toLowerCase().includes('biaya')) { 
-                    const val = j.additional_fields[key]; 
-                    if (val) { 
-                        const cleaned = val.toString().replace(/\./g, '').replace(/[^0-9]/g, ''); 
-                        totalHargaPaket = parseInt(cleaned); 
-                        if (!isNaN(totalHargaPaket) && totalHargaPaket > 0) break; 
-                    } 
-                } 
-            } 
-        }
+        const totalHargaPaket = getTotalHargaPaket(j);
         
         // Hitung lunas dan piutang
         if (totalHargaPaket && totalHargaPaket > 0) { 
@@ -3800,19 +3786,7 @@ function renderDashboard() {
     let lunasCount = 0, totalPiutang = 0;
     jamaahData.forEach(j => {
         const totalBayar = paymentData.filter(t => t.id_jamaah == j.id).reduce((s,t) => s + t.nominal, 0);
-        let totalHargaPaket = null;
-        if (j.additional_fields) { 
-            for (const key in j.additional_fields) { 
-                if (key.toLowerCase().includes('harga') || key.toLowerCase().includes('paket')) { 
-                    const val = j.additional_fields[key]; 
-                    if (val) { 
-                        const cleaned = val.toString().replace(/\./g, '').replace(/[^0-9]/g, ''); 
-                        totalHargaPaket = parseInt(cleaned); 
-                        if (!isNaN(totalHargaPaket)) break; 
-                    } 
-                } 
-            } 
-        }
+        const totalHargaPaket = getTotalHargaPaket(j);
         if (totalHargaPaket && totalHargaPaket > 0) { 
             if (totalBayar >= totalHargaPaket) lunasCount++; 
             else totalPiutang += (totalHargaPaket - totalBayar); 
@@ -3900,19 +3874,7 @@ function renderDashboard() {
     const piutangList = [];
     jamaahData.forEach(j => { 
         const totalBayar = paymentData.filter(t => t.id_jamaah == j.id).reduce((s,t) => s + t.nominal, 0); 
-        let totalHargaPaket = null; 
-        if (j.additional_fields) { 
-            for (const key in j.additional_fields) { 
-                if (key.toLowerCase().includes('harga') || key.toLowerCase().includes('paket')) { 
-                    const val = j.additional_fields[key]; 
-                    if (val) { 
-                        const cleaned = val.toString().replace(/\./g, '').replace(/[^0-9]/g, ''); 
-                        totalHargaPaket = parseInt(cleaned); 
-                        if (!isNaN(totalHargaPaket)) break; 
-                    } 
-                } 
-            } 
-        } 
+        const totalHargaPaket = getTotalHargaPaket(j); 
         if (totalHargaPaket && totalHargaPaket > 0 && totalBayar < totalHargaPaket) 
             piutangList.push({ nama: j.nama_lengkap, sisa: totalHargaPaket - totalBayar, total: totalHargaPaket }); 
     });
@@ -3931,28 +3893,12 @@ async function cetakDashboardHTML() {
     let totalLunas = 0, totalPiutang = 0;
     jamaahData.forEach(j => {
         const totalBayar = paymentData.filter(t => t.id_jamaah == j.id).reduce((s,t) => s + t.nominal, 0);
-        let hargaPaket = 0;
-        if (j.additional_fields) {
-            for (const key in j.additional_fields) {
-                if (key.toLowerCase().includes('harga') || key.toLowerCase().includes('paket')) {
-                    const val = j.additional_fields[key];
-                    if (val) { const cleaned = parseInt(val.toString().replace(/\./g,'').replace(/[^0-9]/g,'')); if(!isNaN(cleaned)) { hargaPaket = cleaned; break; } }
-                }
-            }
-        }
+        const hargaPaket = getTotalHargaPaket(j) || 0;
         if (hargaPaket > 0) { if (totalBayar >= hargaPaket) totalLunas++; else totalPiutang += (hargaPaket - totalBayar); }
     });
     const topPiutang = jamaahData.map(j => {
         const totalBayar = paymentData.filter(t => t.id_jamaah == j.id).reduce((s,t) => s + t.nominal, 0);
-        let hargaPaket = 0;
-        if (j.additional_fields) {
-            for (const key in j.additional_fields) {
-                if (key.toLowerCase().includes('harga') || key.toLowerCase().includes('paket')) {
-                    const val = j.additional_fields[key];
-                    if (val) { const cleaned = parseInt(val.toString().replace(/\./g,'').replace(/[^0-9]/g,'')); if(!isNaN(cleaned)) { hargaPaket = cleaned; break; } }
-                }
-            }
-        }
+        const hargaPaket = getTotalHargaPaket(j) || 0;
         return { nama: j.nama_lengkap, paket: hargaPaket, sisa: Math.max(0, hargaPaket - totalBayar) };
     }).sort((a,b) => b.sisa - a.sisa).slice(0,5);
 
@@ -4669,19 +4615,9 @@ function hitungRekapAktual() {
     jamaahList.forEach(j => {
         const tipe = j.additional_fields?.tipe_paket || '';
 
-        // Harga paket (kontrak/target)
-        let hargaPaket = 0;
-        if(j.additional_fields) {
-            const possibleNames = ['total_harga_paket','total_harga','harga_paket','paket','tagihan','nominal'];
-            for(const key in j.additional_fields) {
-                const keyLow = key.toLowerCase();
-                if(possibleNames.some(n => keyLow.includes(n.split('_')[0])) ||
-                   keyLow.includes('harga') || keyLow.includes('paket') || keyLow.includes('tagihan')) {
-                    const val = parseInt((j.additional_fields[key]||'0').toString().replace(/\./g,'').replace(/[^0-9]/g,''));
-                    if(!isNaN(val) && val > 0) { hargaPaket = val; break; }
-                }
-            }
-        }
+        // Harga paket (kontrak/target) - pakai fungsi yang sama dengan Menu Pembayaran
+        // supaya konsisten & ikut cek fitur "Harga Seragam" di Konfigurasi
+        let hargaPaket = getTotalHargaPaket(j) || 0;
 
         // Sudah dibayar = SUM cicilan dari pembayaranData (yang benar-benar masuk)
         const payData = typeof paymentTransaksiList !== 'undefined' ? paymentTransaksiList : [];
