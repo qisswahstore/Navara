@@ -3588,7 +3588,7 @@ function updateHomeDashboardExtra(totalJamaah, lunasCount, totalPiutang) {
 
 function openQuickTambahJamaah() {
     showPage('jamaah');
-    setTimeout(() => { const btn = document.getElementById('btnTambahJamaah'); if(btn) btn.click(); }, 300);
+    setTimeout(() => { if(typeof openTambahJamaahModal === 'function') openTambahJamaahModal(); }, 300);
 }
 
 function openQuickBayar() {
@@ -5954,7 +5954,6 @@ function renderRekapAbsensi() {
 // SISTEM LISENSI NAVARA v2 — Device Bound
 // ============================================
 const _SK = "NAVR2026XK";
-const BATAS_GRATIS = 20;
 const WA_ADMIN = "6281391485440";
 
 function _sh(str) {
@@ -8723,6 +8722,12 @@ function toggleHargaSeragamInput() {
         wrap.style.display = cb.checked ? 'block' : 'none';
         slider.style.background = cb.checked ? '#0D5C4A' : '#ccc';
     }
+}
+
+function formatMoneyInput(el) {
+    const raw = el.value.replace(/\./g,'').replace(/[^0-9]/g,'');
+    const num = parseInt(raw) || 0;
+    el.value = num > 0 ? num.toLocaleString('id-ID') : '';
 }
 
 function formatHargaInput(el) {
@@ -12100,12 +12105,9 @@ function aturPengingatOtomatis() {
     const schedule = document.getElementById('reminderSchedule').value; 
     const message = document.getElementById('reminderMessage').value; 
     if(!schedule || !message) return showToast('Isi jadwal dan pesan!'); 
-    const select = document.getElementById('reminderJamaahSelect'); 
-    const selectedOptions = Array.from(select.selectedOptions); 
-    let jamaahIds = []; 
-    if(selectedOptions.some(opt => opt.value === 'all')) jamaahIds = ['all']; 
-    else jamaahIds = selectedOptions.map(opt => parseInt(opt.value)); 
-    if(jamaahIds.length === 0) return showToast('Pilih jamaah!'); 
+    const checked = document.querySelectorAll('#multiPengingatJamaahSelect input:checked');
+    if(checked.length === 0) return showToast('Pilih jamaah!'); 
+    const jamaahIds = Array.from(checked).map(cb => parseInt(cb.value));
     scheduledReminders.push({ id: Date.now(), schedule: new Date(schedule).getTime(), message, jamaahIds, created_at: new Date().toLocaleDateString('id-ID') }); 
     saveScheduledReminders(); 
     showToast('⏰ Pengingat otomatis diatur'); 
