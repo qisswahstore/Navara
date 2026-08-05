@@ -3176,23 +3176,40 @@
     <h3 id="entryModalTitle">Tambah Catatan</h3>
     <div class="input-group">
         <label>Judul <span style="color:#999;font-size:11px;">(opsional)</span></label>
-        <input type="text" id="entryJudul" placeholder="Judul catatan...">
+        <input type="text" id="entryJudul" placeholder="Judul catatan..." oninput="autoSaveDraftCatatan()">
+    </div>
+    <div class="input-group" style="position:relative;">
+        <label>Isi Catatan</label>
+        <textarea id="entryIsi" rows="12" placeholder="Tulis catatan di sini..." style="resize:vertical;min-height:180px;" oninput="autoSaveDraftCatatan()"></textarea>
+        <div id="entryCharCount" style="position:absolute;bottom:8px;right:12px;font-size:10px;color:#bbb;">0 karakter</div>
     </div>
     <div class="input-group" style="margin-bottom:12px;">
-        <label>Warna Label</label>
+        <label>Warna Label <span style="color:#999;font-size:11px;">(pilih setelah selesai menulis)</span></label>
         <div style="display:flex;gap:10px;margin-top:6px;">
-            <span id="colorOpt_default" onclick="pilihWarnaCatatan('default')" style="width:28px;height:28px;border-radius:50%;background:#0D5C4A;cursor:pointer;border:3px solid #333;display:inline-block;"></span>
-            <span id="colorOpt_merah"   onclick="pilihWarnaCatatan('merah')"   style="width:28px;height:28px;border-radius:50%;background:#EF4444;cursor:pointer;display:inline-block;"></span>
-            <span id="colorOpt_kuning"  onclick="pilihWarnaCatatan('kuning')"  style="width:28px;height:28px;border-radius:50%;background:#F59E0B;cursor:pointer;display:inline-block;"></span>
-            <span id="colorOpt_biru"    onclick="pilihWarnaCatatan('biru')"    style="width:28px;height:28px;border-radius:50%;background:#3B82F6;cursor:pointer;display:inline-block;"></span>
-            <span id="colorOpt_ungu"    onclick="pilihWarnaCatatan('ungu')"    style="width:28px;height:28px;border-radius:50%;background:#8B5CF6;cursor:pointer;display:inline-block;"></span>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                <span id="colorOpt_default" onclick="pilihWarnaCatatan('default')" style="width:28px;height:28px;border-radius:50%;background:#0D5C4A;cursor:pointer;border:3px solid #333;display:inline-block;"></span>
+                <span style="font-size:9px;color:#888;">Umum</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                <span id="colorOpt_merah" onclick="pilihWarnaCatatan('merah')" style="width:28px;height:28px;border-radius:50%;background:#EF4444;cursor:pointer;display:inline-block;"></span>
+                <span style="font-size:9px;color:#888;">Penting</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                <span id="colorOpt_kuning" onclick="pilihWarnaCatatan('kuning')" style="width:28px;height:28px;border-radius:50%;background:#F59E0B;cursor:pointer;display:inline-block;"></span>
+                <span style="font-size:9px;color:#888;">Jamaah</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                <span id="colorOpt_biru" onclick="pilihWarnaCatatan('biru')" style="width:28px;height:28px;border-radius:50%;background:#3B82F6;cursor:pointer;display:inline-block;"></span>
+                <span style="font-size:9px;color:#888;">Ide</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                <span id="colorOpt_ungu" onclick="pilihWarnaCatatan('ungu')" style="width:28px;height:28px;border-radius:50%;background:#8B5CF6;cursor:pointer;display:inline-block;"></span>
+                <span style="font-size:9px;color:#888;">Lainnya</span>
+            </div>
         </div>
         <input type="hidden" id="entryWarna" value="default">
     </div>
-    <div class="input-group">
-        <label>Isi Catatan</label>
-        <textarea id="entryIsi" rows="12" placeholder="Tulis catatan di sini..." style="resize:vertical;min-height:180px;"></textarea>
-    </div>
+    <div id="draftIndicator" style="display:none;background:#FEF9E7;border:1px solid #F3E5AB;border-radius:10px;padding:8px 10px;font-size:11px;color:#8a6d1f;margin-bottom:10px;">💾 Draft tersimpan otomatis</div>
     <div style="display:flex;gap:8px;">
         <button class="btn btn-primary" style="flex:1;" onclick="saveCatatanEntry()">💾 SIMPAN</button>
         <button class="btn" style="flex:1;background:#e2e8f0;color:#333;" onclick="closeEntryModal()">Batal</button>
@@ -9396,14 +9413,23 @@ function pilihWarnaCatatan(warna) {
     });
 }
 
-function loadCatatanData() {
-    const saved = localStorage.getItem('navara_catatan_list');
-    catatanList = saved ? JSON.parse(saved) : [];
+async function loadCatatanData() {
+    try {
+        const saved = await idbGet(STORE_CATATAN, 'catatan_list');
+        if(saved) { catatanList = saved; renderCatatanList(); return; }
+        // Migrasi dari localStorage kalau ada (versi lama sebelum pakai IndexedDB)
+        const old = localStorage.getItem('navara_catatan_list');
+        if(old) {
+            catatanList = JSON.parse(old);
+            await saveCatatanData();
+            localStorage.removeItem('navara_catatan_list');
+        } else { catatanList = []; }
+    } catch(e) { catatanList = []; }
     renderCatatanList();
 }
 
-function saveCatatanData() {
-    localStorage.setItem('navara_catatan_list', JSON.stringify(catatanList));
+async function saveCatatanData() {
+    try { await idbSet(STORE_CATATAN, 'catatan_list', catatanList); } catch(e) {}
     renderCatatanList();
 }
 
@@ -9485,9 +9511,19 @@ function renderCatatanList() {
 function openTambahCatatan() {
     editingCatatanIndex = null;
     document.getElementById('entryModalTitle').innerText = '✏️ Catatan Baru';
-    document.getElementById('entryJudul').value = '';
-    document.getElementById('entryIsi').value = '';
-    pilihWarnaCatatan('default');
+    const draft = getDraftCatatan();
+    if(draft && draft.editingIndex === null) {
+        document.getElementById('entryJudul').value = draft.judul || '';
+        document.getElementById('entryIsi').value = draft.isi || '';
+        pilihWarnaCatatan(draft.warna || 'default');
+        showDraftIndicator();
+    } else {
+        document.getElementById('entryJudul').value = '';
+        document.getElementById('entryIsi').value = '';
+        pilihWarnaCatatan('default');
+        hideDraftIndicator();
+    }
+    updateCharCount();
     document.getElementById('entryModal').classList.add('show');
     setTimeout(() => document.getElementById('entryIsi').focus(), 300);
 }
@@ -9496,10 +9532,61 @@ function editCatatan(idx) {
     editingCatatanIndex = idx;
     const item = catatanList[idx];
     document.getElementById('entryModalTitle').innerText = '✏️ Edit Catatan';
-    document.getElementById('entryJudul').value = item.judul || '';
-    document.getElementById('entryIsi').value = item.isi;
-    pilihWarnaCatatan(item.warna || 'default');
+    const draft = getDraftCatatan();
+    if(draft && draft.editingIndex === idx) {
+        document.getElementById('entryJudul').value = draft.judul || '';
+        document.getElementById('entryIsi').value = draft.isi || '';
+        pilihWarnaCatatan(draft.warna || item.warna || 'default');
+        showDraftIndicator();
+    } else {
+        document.getElementById('entryJudul').value = item.judul || '';
+        document.getElementById('entryIsi').value = item.isi;
+        pilihWarnaCatatan(item.warna || 'default');
+        hideDraftIndicator();
+    }
+    updateCharCount();
     document.getElementById('entryModal').classList.add('show');
+}
+
+// ===== Draft otomatis Catatan (supaya tulisan tidak hilang kalau app ke-minimize) =====
+let _draftCatatanTimeout = null;
+
+function updateCharCount() {
+    const el = document.getElementById('entryIsi');
+    const counter = document.getElementById('entryCharCount');
+    if(el && counter) counter.textContent = el.value.length + ' karakter';
+}
+
+function getDraftCatatan() {
+    try { return JSON.parse(localStorage.getItem('navara_catatan_draft') || 'null'); }
+    catch(e) { return null; }
+}
+
+function showDraftIndicator() {
+    const el = document.getElementById('draftIndicator');
+    if(el) el.style.display = 'block';
+}
+function hideDraftIndicator() {
+    const el = document.getElementById('draftIndicator');
+    if(el) el.style.display = 'none';
+}
+
+function autoSaveDraftCatatan() {
+    updateCharCount();
+    clearTimeout(_draftCatatanTimeout);
+    _draftCatatanTimeout = setTimeout(() => {
+        const judul = document.getElementById('entryJudul').value;
+        const isi = document.getElementById('entryIsi').value;
+        const warna = document.getElementById('entryWarna').value || 'default';
+        if(!judul.trim() && !isi.trim()) { clearDraftCatatan(); return; }
+        localStorage.setItem('navara_catatan_draft', JSON.stringify({ judul, isi, warna, editingIndex: editingCatatanIndex }));
+        showDraftIndicator();
+    }, 600);
+}
+
+function clearDraftCatatan() {
+    localStorage.removeItem('navara_catatan_draft');
+    hideDraftIndicator();
 }
 
 function saveCatatanEntry() {
@@ -9516,6 +9603,7 @@ function saveCatatanEntry() {
         showToast('✅ Catatan ditambahkan');
     }
     saveCatatanData();
+    clearDraftCatatan();
     closeEntryModal();
 }
 
@@ -9583,6 +9671,7 @@ function shareDetailToWA() {
 function closeEntryModal() {
     document.getElementById('entryModal').classList.remove('show');
     editingCatatanIndex = null;
+    clearDraftCatatan();
 }
 
 function closeDetailModal() {
@@ -10135,7 +10224,7 @@ function exportFolderToExcel(folderId) {
 // ==================== UPLOAD DOKUMEN ====================
 let dokumenJenisList = [], dokumenData = {}, db = null;
 // ==================== INDEXEDDB TERPUSAT ====================
-const DB_NAME = 'NavaraDB', DB_VERSION = 4, 
+const DB_NAME = 'NavaraDB', DB_VERSION = 5, 
     STORE_NAME = 'dokumen', 
     JENIS_STORE_NAME = 'dokumenJenis',
     STORE_JAMAAH = 'jamaahData',
@@ -10147,7 +10236,8 @@ const DB_NAME = 'NavaraDB', DB_VERSION = 4,
     STORE_MASTER = 'masterData',
     STORE_FOTO = 'fotoProfil',
     STORE_ABSENSI = 'absensiData',
-    STORE_PENGELUARAN = 'pengeluaranData';
+    STORE_PENGELUARAN = 'pengeluaranData',
+    STORE_CATATAN = 'catatanData';
 
 function openIndexedDB() { 
     return new Promise((resolve, reject) => { 
@@ -10160,7 +10250,7 @@ function openIndexedDB() {
             const d = event.target.result; 
             [STORE_NAME, JENIS_STORE_NAME, STORE_JAMAAH, STORE_JAMAAH_KITA, 
              STORE_FOLDER, STORE_KAS, STORE_PEMBAYARAN, STORE_KONFIGURASI, 
-             STORE_MASTER, STORE_FOTO, STORE_ABSENSI, STORE_PENGELUARAN].forEach(name => {
+             STORE_MASTER, STORE_FOTO, STORE_ABSENSI, STORE_PENGELUARAN, STORE_CATATAN].forEach(name => {
                 if (!d.objectStoreNames.contains(name)) d.createObjectStore(name, { keyPath: 'id' });
             });
         }; 
@@ -11159,7 +11249,7 @@ async function bagikanFullZip() {
             multi_event: masterDataList,
             dokumen_jenis: dokumenJenisList,
             konfigurasi: konfigurasiPro,
-            catatan: JSON.parse(localStorage.getItem('navara_catatan_list') || '[]'),
+            catatan: catatanList,
             pengeluaran: pengeluaranList
         };
         const json = JSON.stringify(backupData);
@@ -11205,7 +11295,7 @@ async function bagikanFullZip() {
                 folder: folderList, kas: dataKas, pembayaran: paymentTransaksiList,
                 multi_event: masterDataList, dokumen_jenis: dokumenJenisList,
                 konfigurasi: konfigurasiPro,
-                catatan: JSON.parse(localStorage.getItem('navara_catatan_list') || '[]'),
+                catatan: catatanList,
                 pengeluaran: pengeluaranList
             };
             const json = JSON.stringify(backupData);
@@ -11264,7 +11354,7 @@ async function downloadFullZip() {
         zip.file('kas.json', JSON.stringify(dataKas, null, 2)); 
         zip.file('pembayaran.json', JSON.stringify(paymentTransaksiList, null, 2)); 
         zip.file('multi_event.json', JSON.stringify(masterDataList, null, 2)); 
-        zip.file('catatan.json', JSON.stringify(JSON.parse(localStorage.getItem('navara_catatan_list') || '[]'), null, 2)); 
+        zip.file('catatan.json', JSON.stringify(catatanList, null, 2)); 
         zip.file('jamaah_kita.json', JSON.stringify({ data: jamaahKitaList, fields: dynamicFieldsJamaahKita }, null, 2));
         zip.file('folder.json', JSON.stringify(folderList, null, 2));
         zip.file('dokumen_jenis.json', JSON.stringify(dokumenJenisList, null, 2));
@@ -11355,7 +11445,7 @@ async function applyRestoreBackupData(backup) {
     if (backup.multi_event) { masterDataList = backup.multi_event; await idbSet(STORE_MASTER, 'master_data', masterDataList); }
     if (backup.dokumen_jenis) { dokumenJenisList = backup.dokumen_jenis; await saveDokumenJenisToIndexedDB(); }
     if (backup.konfigurasi) { konfigurasiPro = { ...konfigurasiPro, ...backup.konfigurasi }; await idbSet(STORE_KONFIGURASI, 'konfigurasi_pro', konfigurasiPro); }
-    if (backup.catatan) localStorage.setItem('navara_catatan_list', JSON.stringify(backup.catatan));
+    if (backup.catatan) { catatanList = backup.catatan; await saveCatatanData(); }
     if (backup.pengeluaran) { pengeluaranList = backup.pengeluaran; await savePengeluaran(); }
 }
 
@@ -11418,7 +11508,7 @@ function restoreFromZip(input) {
 
             // Restore catatan
             const catatanFile = zip.file('catatan.json'); 
-            if (catatanFile) { const d = JSON.parse(await catatanFile.async('string')); localStorage.setItem('navara_catatan_list', JSON.stringify(d)); }
+            if (catatanFile) { catatanList = JSON.parse(await catatanFile.async('string')); await saveCatatanData(); }
 
             // Restore on proses
             const kitaFile = zip.file('jamaah_kita.json');
@@ -12134,7 +12224,7 @@ function hapusPengingat(id) {
 
 // ==================== RESET ALL DATA ====================
 async function confirmResetAllData() { 
-    if(!confirm('⚠️ RESET SEMUA DATA?\n\nSEMUA data akan dihapus permanen:\n- Jamaah & dokumen\n- Kas & pembayaran\n- On Proses & Folder\n- Konfigurasi instansi\n- Absensi\n- Foto profil\n\nAplikasi kembali seperti pertama kali diinstall!\n\nCatatan: Lisensi & Device ID TETAP tersimpan.\n\nLanjutkan?')) return;
+    if(!confirm('⚠️ RESET SEMUA DATA?\n\nSEMUA data akan dihapus permanen:\n- Jamaah & dokumen\n- Kas & pembayaran\n- On Proses & Folder\n- Konfigurasi instansi\n- Absensi\n- Foto profil\n- Catatan\n- Pengeluaran (Cuan Plan)\n\nAplikasi kembali seperti pertama kali diinstall!\n\nCatatan: Lisensi & Device ID TETAP tersimpan.\n\nLanjutkan?')) return;
     if(!confirm('Yakin? Tindakan ini TIDAK BISA dibatalkan!')) return;
 
     // Selamatkan lisensi & device ID sebelum reset
@@ -13382,7 +13472,7 @@ async function initPremium() {
     await loadFolderData();
     loadModesFromStorage();
     renderDynamicModeSwitcher();
-    loadCatatanData();
+    await loadCatatanData();
     await loadDokumenData();
     loadPengingatData();
     await loadAbsensiData();
